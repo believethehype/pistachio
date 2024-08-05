@@ -6,6 +6,7 @@ import cashu.mint.tasks
 import httpx
 import nostr_dvm.utils.zap_utils
 import requests
+from cashu.core.base import TokenV3
 from cashu.core.models import GetInfoResponse, MintMeltMethodSetting
 from cashu.mint.ledger import Ledger
 from cashu.nostr.key import PublicKey, PrivateKey
@@ -17,6 +18,12 @@ from nostr_dvm.utils.dvmconfig import DVMConfig
 from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits
 
 BASE_URL = "https://mint.minibits.cash/Bitcoin"
+
+
+async def test_receive(token_str):
+    token = TokenV3.deserialize(token_str)
+    await receive_cashu_test(token_str)
+    await get_cashu_balance(token.token[0].mint)
 
 
 async def test_create_p2pk_pubkey(wallet1: Wallet):
@@ -143,9 +150,7 @@ def parse_cashu(cashu_token: str):
 
 async def mint_token(mint, amount):
 
-
-
-    url = mint + "/v1/mint/quote/bolt11" 
+    url = mint + "/v1/mint/quote/bolt11"
     json_object = {"unit": "sat", "amount": amount}
 
     headers = {"Content-Type": "application/json; charset=utf-8"}
@@ -171,17 +176,10 @@ async def mint_token(mint, amount):
             db="db/Cashu",
         )
 
-        secrets, rs, derivation_paths = await wallet.generate_secrets_from_to(10000, 10001)
-        outputs, rs = wallet._construct_outputs([amount], secrets, rs)
-        outputs_payload = [o.dict() for o in outputs]
+        await wallet.load_mint()
+        proofs = await wallet.mint(amount, tree['quote'], None)
+        return proofs
 
-        json_object = {"quote": tree['quote'], "outputs": outputs_payload}
-        headers = {"Content-Type": "application/json; charset=utf-8"}
-        request_body = json.dumps(json_object).encode('utf-8')
-        request = requests.post(url, data=request_body, headers=headers)
-        tree = json.loads(request.text)
-
-        #TODO get proofs and store them to event
 
 
 
