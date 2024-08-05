@@ -67,34 +67,6 @@ async def get_cashu_balance(url):
     print(mint_balances)
 
 
-async def mint_cashu_test(url, amount):
-    from cashu.wallet.wallet import Wallet
-    from cashu.core.settings import settings
-
-    settings.tor = False
-    wallet = await Wallet.with_db(
-        url=url,
-        db="db/Cashu",
-    )
-    await wallet.load_mint()
-    await wallet.load_proofs()
-    print("Wallet balance " + str(wallet.available_balance) + " sats")
-    mint_balances = await wallet.balance_per_minturl()
-    print(mint_balances)
-    # mint tokens into wallet, skip if wallet already has funds
-
-    # if wallet.available_balance <= 10:
-    #    invoice = await wallet.request_mint(amount)
-    #    input(f"Pay this invoice and press any button: {invoice.bolt11}\n")
-    #    await wallet.mint(amount, id=invoice.id)
-
-    # create 10 sat token
-    proofs_to_send, _ = await wallet.split_to_send(wallet.proofs, amount, set_reserved=True)
-    token_str = await wallet.serialize_proofs(proofs_to_send)
-    print(token_str)
-    return token_str
-
-
 async def receive_cashu_test(token_str):
     from cashu.wallet.wallet import Wallet
     from cashu.core.settings import settings
@@ -116,6 +88,29 @@ async def receive_cashu_test(token_str):
 
     try:
         await wallet.redeem(token.token[0].proofs)
+        print(f"Wallet balance: {wallet.available_balance} sats")
+    except Exception as e:
+        print(e)
+
+
+async def mint_cashu_test(mint_url, amount):
+    from cashu.wallet.wallet import Wallet
+    from cashu.core.settings import settings
+    from cashu.core.base import TokenV3
+
+    settings.tor = False
+    wallet = await Wallet.with_db(
+        url=mint_url,
+        db="db/Cashu",
+    )
+
+    #await wallet.load_mint()
+    #await wallet.load_proofs()
+
+    #print(f"Wallet balance: {wallet.available_balance} sats")
+
+    try:
+        await wallet.mint()
         print(f"Wallet balance: {wallet.available_balance} sats")
     except Exception as e:
         print(e)
@@ -147,6 +142,9 @@ def parse_cashu(cashu_token: str):
 
 
 async def mint_token(mint, amount):
+
+
+
     url = mint + "/v1/mint/quote/bolt11"  # Melt cashu tokens at Mint
     json_object = {"unit": "sat", "amount": amount}
 
@@ -167,12 +165,23 @@ async def mint_token(mint, amount):
     if tree2["paid"]:
         print(response.text)
         url = f"{mint}/v1/mint/bolt11"
-        blindsignatures  = [] #TODO Help
-        json_object = {"quote": tree['quote'], "outputs": blindsignatures}
+
+        wallet = await Wallet.with_db(
+            url=mint,
+            db="db/Cashu",
+        )
+
+        secrets, rs, derivation_paths = await wallet.generate_secrets_from_to(10000, 10001)
+        outputs, rs = wallet._construct_outputs([amount], secrets, rs)
+        outputs_payload = [o.dict() for o in outputs]
+
+        json_object = {"quote": tree['quote'], "outputs": outputs_payload}
         headers = {"Content-Type": "application/json; charset=utf-8"}
         request_body = json.dumps(json_object).encode('utf-8')
         request = requests.post(url, data=request_body, headers=headers)
         tree = json.loads(request.text)
+
+        #TODO get proofs and store them to event
 
 
 
