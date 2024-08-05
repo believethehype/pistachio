@@ -1,7 +1,10 @@
 import base64
 import json
+import os
 
+import cashu.mint.tasks
 import httpx
+import nostr_dvm.utils.zap_utils
 import requests
 from cashu.core.models import GetInfoResponse, MintMeltMethodSetting
 from cashu.mint.ledger import Ledger
@@ -10,6 +13,8 @@ from cashu.wallet.wallet import Wallet
 
 from nostr_dvm.utils.database_utils import get_or_add_user
 from nostr_dvm.utils.zap_utils import create_bolt11_ln_bits, create_bolt11_lud16
+from nostr_dvm.utils.dvmconfig import DVMConfig
+from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits
 
 BASE_URL = "https://mint.minibits.cash/Bitcoin"
 
@@ -19,7 +24,7 @@ async def test_create_p2pk_pubkey(wallet1: Wallet):
     # await pay_if_regtest(invoice.bolt11)
     await wallet1.mint(64, id=invoice.id)
     pubkey = await wallet1.create_p2pk_pubkey()
-    PublicKey(bytes.fromhex(pubkey), raw=True)
+    PublicKey(bytes.fromhex(pubkey))
 
 
 async def cashu_wallet(url):
@@ -28,6 +33,7 @@ async def cashu_wallet(url):
         db="db/Cashu",
         name="wallet_mint_api",
     )
+
     await wallet1.load_mint()
     return wallet1
 
@@ -138,6 +144,37 @@ def parse_cashu(cashu_token: str):
     except Exception as e:
         print(e)
         return None, None, None, "Cashu Parser: " + str(e)
+
+
+async def mint_token(mint, amount):
+    url = mint + "/v1/mint/quote/bolt11"  # Melt cashu tokens at Mint
+    json_object = {"unit": "sat", "amount": amount}
+
+    headers = {"Content-Type": "application/json; charset=utf-8"}
+    request_body = json.dumps(json_object).encode('utf-8')
+    request = requests.post(url, data=request_body, headers=headers)
+    tree = json.loads(request.text)
+
+    config = DVMConfig()
+    config.LNBITS_ADMIN_KEY = os.getenv("LNBITS_ADMIN_KEY")
+    config.LNBITS_URL = os.getenv("LNBITS_HOST")
+    paymenthash = pay_bolt11_ln_bits(tree["request"], config)
+    print(paymenthash)
+    url = f"{mint}/v1/mint/quote/bolt11/{tree['quote']}"
+
+    response = requests.get(url, data=request_body, headers=headers)
+    tree2 = json.loads(response.text)
+    if tree2["paid"]:
+        print(response.text)
+        url = f"{mint}/v1/mint/bolt11"
+        blindsignatures  = []
+        json_object = {"quote": tree['quote'], "outputs": blindsignatures}
+        headers = {"Content-Type": "application/json; charset=utf-8"}
+        request_body = json.dumps(json_object).encode('utf-8')
+        request = requests.post(url, data=request_body, headers=headers)
+        tree = json.loads(request.text)
+
+
 
 
 async def redeem_cashu(cashu, config, client, required_amount=0, update_self=False) -> (bool, str, int, int):
