@@ -145,7 +145,7 @@ async def mint_token(mint, amount):
 
 
 
-    url = mint + "/v1/mint/quote/bolt11"  # Melt cashu tokens at Mint
+    url = mint + "/v1/mint/quote/bolt11" 
     json_object = {"unit": "sat", "amount": amount}
 
     headers = {"Content-Type": "application/json; charset=utf-8"}
