@@ -121,4 +121,4 @@ async def create_nut_wallet(nut_wallet: NutWallet, client, dvm_config):
     eventid = await send_event(event, client=client, dvm_config=dvm_config)
 
     print(
-        bcolors.BLUE + "[" + dvm_config.NIP89.NAME + "] Announced NIP 60 for " + dvm_config.NIP89.NAME + " (" + eventid.id.to_hex() + ")" + bcolors.ENDC)
+        bcolors.BLUE + "[" + dvm_config.NIP89.NAME + "] Announced NIP 60 for Wallet: " + nut_wallet.name + " (" + eventid.id.to_hex() + ")" + bcolors.ENDC)
