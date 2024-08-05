@@ -167,7 +167,7 @@ async def mint_token(mint, amount):
     if tree2["paid"]:
         print(response.text)
         url = f"{mint}/v1/mint/bolt11"
-        blindsignatures  = []
+        blindsignatures  = [] #TODO Help
         json_object = {"quote": tree['quote'], "outputs": blindsignatures}
         headers = {"Content-Type": "application/json; charset=utf-8"}
         request_body = json.dumps(json_object).encode('utf-8')
