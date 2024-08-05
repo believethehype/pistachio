@@ -204,9 +204,6 @@ async def create_nut_wallet(nut_wallet: NutWallet, client, dvm_config):
 
 
 async def create_unspent_proof_event(nut_wallet: NutWallet, mint_proofs, mint_url, client, dvm_config):
-    #innertags = []
-    #mint_tag = Tag.parse(["mint", mint_url])
-    #innertags.append(mint_tag.as_vec())
     new_proofs = []
     amount = 0
     for proof in mint_proofs:
@@ -218,11 +215,6 @@ async def create_unspent_proof_event(nut_wallet: NutWallet, mint_proofs, mint_ur
         }
         amount += int(proof['amount'])
         new_proofs.append(proofjson)
-
-    # TODO otherwise delete previous event and make new one, I guess
-
-    #proofs_tag = Tag.parse(["proofs", json.dumps(new_proofs)])
-    #innertags.append(proofs_tag.as_vec())
 
     tags = []
     print(nut_wallet.a)
@@ -237,8 +229,6 @@ async def create_unspent_proof_event(nut_wallet: NutWallet, mint_proofs, mint_ur
 
     message = json.dumps(j)
 
-
-    #json.dumps(innertags)
     print(message)
     if nut_wallet.legacy_encryption:
         content = nip04_encrypt(keys.secret_key(), keys.public_key(), message)
@@ -248,3 +238,35 @@ async def create_unspent_proof_event(nut_wallet: NutWallet, mint_proofs, mint_ur
     event = EventBuilder(Kind(7375), content, tags).to_event(keys)
     eventid = await send_event(event, client=client, dvm_config=dvm_config)
     return amount
+
+
+async def mint_token(mint, amount):
+
+    url = mint + "/v1/mint/quote/bolt11"
+    json_object = {"unit": "sat", "amount": amount}
+
+    headers = {"Content-Type": "application/json; charset=utf-8"}
+    request_body = json.dumps(json_object).encode('utf-8')
+    request = requests.post(url, data=request_body, headers=headers)
+    tree = json.loads(request.text)
+
+    config = DVMConfig()
+    config.LNBITS_ADMIN_KEY = os.getenv("LNBITS_ADMIN_KEY")
+    config.LNBITS_URL = os.getenv("LNBITS_HOST")
+    paymenthash = pay_bolt11_ln_bits(tree["request"], config)
+    print(paymenthash)
+    url = f"{mint}/v1/mint/quote/bolt11/{tree['quote']}"
+
+    response = requests.get(url, data=request_body, headers=headers)
+    tree2 = json.loads(response.text)
+    if tree2["paid"]:
+        print(response.text)
+        wallet = await Wallet.with_db(
+            url=mint,
+            db="db/Cashu",
+        )
+
+        await wallet.load_mint()
+        proofs = await wallet.mint(amount, tree['quote'], None)
+        return proofs
+

@@ -148,37 +148,6 @@ def parse_cashu(cashu_token: str):
         return None, None, None, "Cashu Parser: " + str(e)
 
 
-async def mint_token(mint, amount):
-
-    url = mint + "/v1/mint/quote/bolt11"
-    json_object = {"unit": "sat", "amount": amount}
-
-    headers = {"Content-Type": "application/json; charset=utf-8"}
-    request_body = json.dumps(json_object).encode('utf-8')
-    request = requests.post(url, data=request_body, headers=headers)
-    tree = json.loads(request.text)
-
-    config = DVMConfig()
-    config.LNBITS_ADMIN_KEY = os.getenv("LNBITS_ADMIN_KEY")
-    config.LNBITS_URL = os.getenv("LNBITS_HOST")
-    paymenthash = pay_bolt11_ln_bits(tree["request"], config)
-    print(paymenthash)
-    url = f"{mint}/v1/mint/quote/bolt11/{tree['quote']}"
-
-    response = requests.get(url, data=request_body, headers=headers)
-    tree2 = json.loads(response.text)
-    if tree2["paid"]:
-        print(response.text)
-        url = f"{mint}/v1/mint/bolt11"
-
-        wallet = await Wallet.with_db(
-            url=mint,
-            db="db/Cashu",
-        )
-
-        await wallet.load_mint()
-        proofs = await wallet.mint(amount, tree['quote'], None)
-        return proofs
 
 
 

@@ -7,9 +7,8 @@ from nostr_sdk import Keys, Client, NostrSigner, Options
 from nostr_dvm.utils.dvmconfig import DVMConfig
 from nostr_dvm.utils.nostr_utils import check_and_set_private_key
 
-from nut_wallet_utils import create_nut_wallet, get_nut_wallet, NutWallet, create_unspent_proof_event
+from nut_wallet_utils import create_nut_wallet, get_nut_wallet, NutWallet, create_unspent_proof_event, mint_token
 import asyncio
-from cashu_utils import mint_token
 
 
 async def client_connect(relay_list):
