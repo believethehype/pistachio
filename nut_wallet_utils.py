@@ -7,11 +7,13 @@ import requests
 from cashu.wallet.wallet import Wallet
 from nostr_dvm.utils.definitions import EventDefinitions
 from nostr_dvm.utils.dvmconfig import DVMConfig
-from nostr_dvm.utils.nostr_utils import send_event
+from nostr_dvm.utils.nostr_utils import send_event, check_and_set_private_key
 from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits
 from nostr_sdk import Tag, Keys, nip44_encrypt, nip44_decrypt, Nip44Version, EventBuilder, Client, Filter, Nip19, Kind, \
-    EventId, nip04_decrypt, nip04_encrypt
+    EventId, nip04_decrypt, nip04_encrypt, Options, NostrSigner
 from nostr_dvm.utils.print import bcolors
+
+import cashu_utils
 
 
 class NutWallet:
@@ -35,6 +37,25 @@ class NutProof:
     C: str
     mint: str
     previous_event_id: EventId
+
+
+async def client_connect(relay_list):
+    dvmconfig = DVMConfig()
+
+    keys = Keys.parse(check_and_set_private_key("RTEST_ACCOUNT_PK"))
+    pk = keys.secret_key().to_hex()
+    dvmconfig.PRIVATE_KEY = pk
+    wait_for_send = False
+    skip_disconnected_relays = True
+    opts = (Options().wait_for_send(wait_for_send).send_timeout(timedelta(seconds=5))
+            .skip_disconnected_relays(skip_disconnected_relays))
+
+    signer = NostrSigner.keys(keys)
+    client = Client.with_opts(signer, opts)
+    for relay in relay_list:
+        await client.add_relay(relay)
+    await client.connect()
+    return client, dvmconfig, keys
 
 
 async def get_nut_wallet(client: Client, keys: Keys) -> NutWallet:
@@ -241,7 +262,6 @@ async def create_unspent_proof_event(nut_wallet: NutWallet, mint_proofs, mint_ur
 
 
 async def mint_token(mint, amount):
-
     url = mint + "/v1/mint/quote/bolt11"
     json_object = {"unit": "sat", "amount": amount}
 
@@ -270,3 +290,54 @@ async def mint_token(mint, amount):
         proofs = await wallet.mint(amount, tree['quote'], None)
         return proofs
 
+
+async def announce_nutzap_info_event(mints, relays):
+    client, dvm_config, keys, = await client_connect(relays)
+
+    tags = []
+    for relay in relays:
+        tags.append(Tag.parse(["relay", relay]))
+    for mint in mints:
+        tags.append(Tag.parse(["mint", mint]))
+
+    cashu_wallet = await Wallet.with_db(
+        url=mints[0],
+        db="db/Cashu",
+        name="wallet_mint_api",
+    )
+
+    await cashu_wallet.load_mint()
+    p2pkpubkey = await cashu_wallet.create_p2pk_pubkey()
+    tags.append(Tag.parse(["pubkey", p2pkpubkey]))
+
+    event = EventBuilder(Kind(10019), "", tags).to_event(keys)
+    eventid = await send_event(event, client=client, dvm_config=dvm_config)
+
+
+async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zapped_user, relays):
+    client, dvm_config, keys, = await client_connect(relays)
+
+    unit = "sat"
+    # TODO fetch recipents 10019 and get prefered mint and pubkey?
+    mint = "….."
+    tags = []
+    tags.append(Tag.parse(["amount", amount, unit]))
+    tags.append(Tag.parse(["comment", comment]))
+    tags.append(Tag.parse(["u", mint]))
+    tags.append(Tag.parse(["e", zapped_event]))
+    tags.append(Tag.parse(["p", zapped_user]))
+
+    #todo some advanced logic to build the requested amount
+    selected_proof = None
+    for proof in nut_wallet.proofs:
+        proof_: NutProof = proof
+        if proof_.amount == amount:
+            selected_proof = proof_
+            break
+
+
+    #TODO p2pk magic
+    content = "[{\"amount\":1,\"C\":\"02277c66191736eb72fce9d975d08e3191f8f96afb73ab1eec37e4465683066d3f\",\"id\":\"000a93d6f8a1d2c4\",\"secret\":\"[\\\"P2PK\\\",{\\\"nonce\\\":\\\"b00bdd0467b0090a25bdf2d2f0d45ac4e355c482c1418350f273a04fedaaee83\\\",\\\"data\\\":\\\"02eaee8939e3565e48cc62967e2fde9d8e2a4b3ec0081f29eceff5c64ef10ac1ed\\\"}]\"}]",
+
+    event = EventBuilder(Kind(10019), content, tags).to_event(keys)
+    eventid = await send_event(event, client=client, dvm_config=dvm_config)

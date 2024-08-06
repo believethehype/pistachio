@@ -7,35 +7,18 @@ from nostr_sdk import Keys, Client, NostrSigner, Options
 from nostr_dvm.utils.dvmconfig import DVMConfig
 from nostr_dvm.utils.nostr_utils import check_and_set_private_key
 
-from nut_wallet_utils import create_nut_wallet, get_nut_wallet, NutWallet, create_unspent_proof_event, mint_token
+from nut_wallet_utils import create_nut_wallet, get_nut_wallet, NutWallet, create_unspent_proof_event, mint_token, \
+    client_connect, announce_nutzap_info_event
 import asyncio
 
 
-async def client_connect(relay_list):
-    dvmconfig = DVMConfig()
 
-    keys = Keys.parse(check_and_set_private_key("RTEST_ACCOUNT_PK"))
-    pk = keys.secret_key().to_hex()
-    dvmconfig.PRIVATE_KEY = pk
-    wait_for_send = False
-    skip_disconnected_relays = True
-    opts = (Options().wait_for_send(wait_for_send).send_timeout(timedelta(seconds=5))
-            .skip_disconnected_relays(skip_disconnected_relays))
-
-    signer = NostrSigner.keys(keys)
-    client = Client.with_opts(signer, opts)
-    for relay in relay_list:
-        await client.add_relay(relay)
-    await client.connect()
-    return client, dvmconfig, keys
-
-
-async def create_new_nut_wallet(mint_urls, relays, name, description):
+async def create_new_or_fetch_nut_wallet(mint_urls, relays, name, description):
     client, dvm_config, keys, = await client_connect(relays)
 
     nut_wallet = await get_nut_wallet(client, keys)
     if nut_wallet is not None:
-        print("Wallet already exists, not creating new one")
+        print("Wallet already exists, returnig existing Wallet")
         return nut_wallet
 
     dvm_config = DVMConfig()
@@ -93,7 +76,13 @@ if __name__ == '__main__':
     else:
         raise FileNotFoundError(f'.env file not found at {env_path} ')
 
+    reannounce_mint_info = False
+    mint_10_sats = False
+
     nut_wallet = asyncio.run(
-        create_new_nut_wallet(["https://mint.minibits.cash/Bitcoin"], ["wss://relay.primal.net", "wss://nostr.mom"],
+        create_new_or_fetch_nut_wallet(["https://mint.minibits.cash/Bitcoin"], ["wss://relay.primal.net", "wss://nostr.mom"],
                               "Test", "My Nutsack"))
-    test_mint = asyncio.run(mint_cashu(nut_wallet, ["https://mint.minibits.cash/Bitcoin"], ["wss://relay.primal.net","wss://nostr.mom"], 10))
+    if reannounce_mint_info:
+        asyncio.run(announce_nutzap_info_event(["https://mint.minibits.cash/Bitcoin"], ["wss://relay.primal.net", "wss://nostr.mom"]))
+    if mint_10_sats:
+        test_mint = asyncio.run(mint_cashu(nut_wallet, ["https://mint.minibits.cash/Bitcoin"], ["wss://relay.primal.net","wss://nostr.mom"], 10))
