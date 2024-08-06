@@ -1,16 +1,17 @@
 from datetime import timedelta
+from hashlib import sha256
 
 from pathlib import Path
 
 import dotenv
-from nostr_sdk import Keys, Client, NostrSigner, Options
+from nostr_dvm.utils.definitions import EventDefinitions
+from nostr_sdk import Keys, Client, NostrSigner, Options, PublicKey, Nip19Event
 from nostr_dvm.utils.dvmconfig import DVMConfig
 from nostr_dvm.utils.nostr_utils import check_and_set_private_key
 
 from nut_wallet_utils import create_nut_wallet, get_nut_wallet, NutWallet, create_unspent_proof_event, mint_token, \
-    client_connect, announce_nutzap_info_event
+    client_connect, announce_nutzap_info_event, send_nut_zap
 import asyncio
-
 
 
 async def create_new_or_fetch_nut_wallet(mint_urls, relays, name, description):
@@ -33,7 +34,10 @@ async def create_new_or_fetch_nut_wallet(mint_urls, relays, name, description):
     new_nut_wallet.description = description
     new_nut_wallet.mints = mint_urls
     new_nut_wallet.relays = dvm_config.RELAY_LIST
-
+    key_str = str(new_nut_wallet.name + new_nut_wallet.description)
+    new_nut_wallet.d = sha256(key_str.encode('utf-8')).hexdigest()[:16]
+    new_nut_wallet.a = str(
+        EventDefinitions.KIND_NUT_WALLET.as_u64()) + ":" + keys.public_key().to_hex() + ":" + new_nut_wallet.d  # TODO maybe this is wrong
     await create_nut_wallet(new_nut_wallet, client, dvm_config)
 
     print(new_nut_wallet.name + ": " + str(new_nut_wallet.balance) + " " + new_nut_wallet.unit + " Mints: " + str(
@@ -68,6 +72,7 @@ async def mint_cashu(nut_wallet: NutWallet, mint_urls, relays, amount):
     print("Additional amount " + str(additional_amount))
     await update_nut_wallet(nut_wallet, mint, additional_amount, relays)
 
+
 if __name__ == '__main__':
     env_path = Path('.env')
     if env_path.is_file():
@@ -76,13 +81,21 @@ if __name__ == '__main__':
     else:
         raise FileNotFoundError(f'.env file not found at {env_path} ')
 
-    reannounce_mint_info = False
+    reannounce_mint_info = True
     mint_10_sats = False
+    send_test = True
+
+    relays = ["wss://relay.primal.net", "wss://nostr.mom"]
+    mints = ["https://mint.minibits.cash/Bitcoin"]
 
     nut_wallet = asyncio.run(
-        create_new_or_fetch_nut_wallet(["https://mint.minibits.cash/Bitcoin"], ["wss://relay.primal.net", "wss://nostr.mom"],
-                              "Test", "My Nutsack"))
+        create_new_or_fetch_nut_wallet(mints, relays, "Test", "My Nutsack"))
     if reannounce_mint_info:
-        asyncio.run(announce_nutzap_info_event(["https://mint.minibits.cash/Bitcoin"], ["wss://relay.primal.net", "wss://nostr.mom"]))
+        asyncio.run(announce_nutzap_info_event(mints, relays, nut_wallet))
     if mint_10_sats:
-        test_mint = asyncio.run(mint_cashu(nut_wallet, ["https://mint.minibits.cash/Bitcoin"], ["wss://relay.primal.net","wss://nostr.mom"], 10))
+        test_mint = asyncio.run(mint_cashu(nut_wallet, mints, relays, 10))
+
+    if send_test:
+        zapped_event_id_hex = Nip19Event.from_nostr_uri("nostr:nevent1qqsxq59mhz8s6aj9jzltcmqmmv3eutsfcpkeny2x755vdu5dtq44ldqpz3mhxw309ucnydewxqhrqt338g6rsd3e9upzp75cf0tahv5z7plpdeaws7ex52nmnwgtwfr2g3m37r844evqrr6jqvzqqqqqqyqtxyr6").event_id().to_hex()
+        zapped_user_hex = PublicKey.parse("npub1l2vyh47mk2p0qlsku7hg0vn29faehy9hy34ygaclpn66ukqp3afqutajft").to_hex()
+        asyncio.run(send_nut_zap(5, "From my nutsack", nut_wallet, zapped_event_id_hex, zapped_user_hex, relays))
