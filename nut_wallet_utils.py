@@ -428,8 +428,9 @@ async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zap
 
     mint_url = mints[11]  # TODO shoudln't matter
 
-    tags = [Tag.parse(["amount", str(amount), unit]),
+    tags = [Tag.parse(["amount", str(amount)]),
             #Tag.parse(["comment", comment]),
+            Tag.parse(["unit", unit]),
             Tag.parse(["u", mint_url]),
             Tag.parse(["e", zapped_event]),
             Tag.parse(["p", zapped_user])]
