@@ -5,7 +5,7 @@ from pathlib import Path
 import dotenv
 from cashu.core.base import Proof
 from cashu.wallet.wallet import Wallet
-from nostr_sdk import PublicKey, Filter, Kind, Timestamp, HandleNotification, Event
+from nostr_sdk import PublicKey, Filter, Kind, Timestamp, HandleNotification, Event, SingleLetterTag, Alphabet
 from nostr_dvm.utils.print import bcolors
 from secp256k1 import PrivateKey
 
@@ -16,13 +16,10 @@ from nut_wallet_utils import get_nut_wallet, announce_nutzap_info_event, mint_ca
 import asyncio
 
 
-async def test():
-    relays = ["wss://relay.primal.net", "wss://nostr.oxtr.dev"]
-    mints = ["https://mint.minibits.cash/Bitcoin", "https://mint.gwoq.com"]
-
+async def test(relays, mints):
     # On first run dont mint or send, that kinda doesnt save the event rn
     mint_5_sats = False
-    send_test = False
+    send_test = True
 
     nut_wallet = await get_nut_wallet(relays)
 
@@ -49,14 +46,14 @@ async def test():
         await get_nut_wallet(relays)
 
 
-async def nostr_client():
-    relays = ["wss://relay.primal.net", "wss://nostr.oxtr.dev"]
-
+async def nostr_client(relays, mints):
     client, dvm_config, keys, = await client_connect(relays)
 
     from_time = Timestamp.from_secs(Timestamp.now().as_secs() - 60)
 
-    nut_zap_filter = Filter().pubkey(keys.public_key()).kinds([Kind(9321)]).since(from_time)  # events to us specific
+    nut_zap_filter = Filter().pubkey(keys.public_key()).kinds([Kind(9321)]).since(from_time).custom_tag(
+        SingleLetterTag.lowercase(Alphabet.U),
+        mints)
 
     await client.subscribe([nut_zap_filter], None)
 
@@ -102,7 +99,6 @@ async def nostr_client():
 
                 await add_proofs_to_wallet(nut_wallet, mint_url, proofs, relays)
 
-
         async def handle_msg(self, relay_url, msg):
             return
 
@@ -119,5 +115,7 @@ if __name__ == '__main__':
     else:
         raise FileNotFoundError(f'.env file not found at {env_path} ')
 
-    asyncio.run(test())
-    asyncio.run(nostr_client())
+    relays = ["wss://relay.primal.net", "wss://nostr.oxtr.dev"]
+    mints = ["https://mint.minibits.cash/Bitcoin", "https://mint.gwoq.com"]
+    asyncio.run(test(relays, mints))
+    asyncio.run(nostr_client(relays, mints))

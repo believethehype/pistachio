@@ -146,9 +146,11 @@ async def get_nut_wallet(relays) -> NutWallet:
             elif tag[0] == "unit":
                 nutwallet.unit = tag[1]
             elif tag[0] == "relay":
-                nutwallet.relays.append(tag[1])
+                if tag[1] not in nutwallet.relays:
+                    nutwallet.relays.append(tag[1])
             elif tag[0] == "mint":
-                nutwallet.mints.append(tag[1])
+                if tag[1] not in nutwallet.mints:
+                    nutwallet.mints.append(tag[1])
 
         for tag in best_wallet.tags():
             if tag.as_vec()[0] == "d":
@@ -161,9 +163,11 @@ async def get_nut_wallet(relays) -> NutWallet:
             elif tag.as_vec()[0] == "unit":
                 nutwallet.unit = tag.as_vec()[1]
             elif tag.as_vec()[0] == "relay":
-                nutwallet.relays.append(tag.as_vec()[1])
+                if tag.as_vec()[1] not in nutwallet.relays:
+                    nutwallet.relays.append(tag.as_vec()[1])
             elif tag.as_vec()[0] == "mint":
-                nutwallet.mints.append(tag.as_vec()[1])
+                if tag.as_vec()[1] not in nutwallet.mints:
+                    nutwallet.mints.append(tag.as_vec()[1])
         nutwallet.a = str("37375:" + best_wallet.author().to_hex() + ":" + nutwallet.d)  # TODO maybe this is wrong
 
         # Now get proofs
@@ -284,7 +288,7 @@ def get_mint(nut_wallet, mint_url) -> NutMint:
         mint.previous_event_id = None
         mint.a = nut_wallet.a
         mint.mint_url = mint_url
-        nut_wallet.nutmints.append(mint)
+
     else:
         mint = mints[0]
 
