@@ -253,7 +253,9 @@ async def create_nut_wallet(nut_wallet: NutWallet, client, dvm_config):
     event = EventBuilder(EventDefinitions.KIND_NUT_WALLET, content, tags).to_event(keys)
     eventid = await send_event(event, client=client, dvm_config=dvm_config)
 
-    print(bcolors.BLUE + "[" + nut_wallet.name + "] Announced NIP 60 for Wallet (" + eventid.id.to_hex() + ")" + bcolors.ENDC)
+    print(
+        bcolors.BLUE + "[" + nut_wallet.name + "] Announced NIP 60 for Wallet (" + eventid.id.to_hex() + ")" + bcolors.ENDC)
+
 
 async def update_nut_wallet(nut_wallet, mints, additional_amount, relays):
     client, dvm_config, keys, = await client_connect(relays)
@@ -451,14 +453,18 @@ async def update_mint_proof_event(nut_wallet, send_proofs, mint_url, relays):
     mint.previous_event_id = await create_unspent_proof_event(nut_wallet, mint.proofs, mint.mint_url, relays)
     return await update_nut_wallet(nut_wallet, [mint.mint_url], -amount, relays)
 
+
 async def mint_cashu(nut_wallet: NutWallet, mint_url, relays, amount):
     print("Minting new tokens on: " + mint_url)
     # Mint the Token at the selected mint
     proofs = await mint_token(mint_url, amount)
     print(proofs)
-    additional_amount = 0
 
+    return await add_proofs_to_wallet(nut_wallet, mint_url, proofs, relays)
+
+async def add_proofs_to_wallet(nut_wallet, mint_url, proofs, relays):
     mint = get_mint(nut_wallet, mint_url)
+    additional_amount = 0
     # store the new proofs in proofs_temp
     all_proofs = []
 

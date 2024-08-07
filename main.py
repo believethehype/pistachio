@@ -10,7 +10,8 @@ from nostr_dvm.utils.print import bcolors
 from secp256k1 import PrivateKey
 
 from nut_wallet_utils import get_nut_wallet, announce_nutzap_info_event, mint_cashu, \
-    send_nut_zap, create_new_nut_wallet, update_nut_wallet, client_connect
+    send_nut_zap, create_new_nut_wallet, update_nut_wallet, client_connect, get_mint, create_unspent_proof_event, \
+    update_mint_proof_event, add_proofs_to_wallet
 
 import asyncio
 
@@ -21,7 +22,7 @@ async def test():
 
     # On first run dont mint or send, that kinda doesnt save the event rn
     mint_5_sats = False
-    send_test = True
+    send_test = False
 
     nut_wallet = await get_nut_wallet(relays)
 
@@ -96,9 +97,10 @@ async def nostr_client():
                 cashu_wallet.private_key = PrivateKey(bytes.fromhex(nut_wallet.privkey), raw=True)
                 await cashu_wallet.load_mint()
 
-                list1, list2 = await cashu_wallet.redeem(proofs)
-                print(list1)
-                print(list2)
+                proofs, _ = await cashu_wallet.redeem(proofs)
+                print(proofs)
+
+                await add_proofs_to_wallet(nut_wallet, mint_url, proofs, relays)
 
 
         async def handle_msg(self, relay_url, msg):
