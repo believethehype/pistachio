@@ -75,12 +75,7 @@ async def nostr_client():
                 for tag in event.tags():
                     if tag.as_vec()[0] == "proof":
                         proof_json = json.loads(tag.as_vec()[1])
-                        proof = Proof()
-                        proof.id = proof_json['id']
-                        proof.secret = proof_json['secret']
-                        proof.C = proof_json['C']
-                        proof.amount = int(proof['amount'])
-
+                        proof = Proof().from_dict(proof_json)
                         proofs.append(proof)
                     elif tag.as_vec()[0] == "u":
                         mint_url = tag.as_vec()[1]
