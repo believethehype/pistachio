@@ -429,7 +429,7 @@ async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zap
     mint_url = mints[11]  # TODO shoudln't matter
 
     tags = [Tag.parse(["amount", str(amount), unit]),
-            Tag.parse(["comment", comment]),
+            #Tag.parse(["comment", comment]),
             Tag.parse(["u", mint_url]),
             Tag.parse(["e", zapped_event]),
             Tag.parse(["p", zapped_user])]
@@ -473,10 +473,12 @@ async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zap
                 'amount': proof.amount,
                 'secret': proof.secret,
             }
-            send_proofs_json.append(nut_proof)
+            tags.append(Tag.parse(["proof", json.dumps(nut_proof)]))
+            #send_proofs_json.append(nut_proof)
 
-        content = json.dumps(send_proofs_json)
-        event = EventBuilder(Kind(10019), content, tags).to_event(keys)
+        #content = json.dumps(send_proofs_json)
+        event = EventBuilder(Kind(9321), comment, tags).to_event(keys)
+        print(event.as_json())
         _ = await send_event(event, client=client, dvm_config=dvm_config)
 
     except Exception as e:

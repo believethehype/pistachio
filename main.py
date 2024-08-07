@@ -100,8 +100,8 @@ if __name__ == '__main__':
         raise FileNotFoundError(f'.env file not found at {env_path} ')
 
     reannounce_mint_info = True
-    mint_10_sats = False
-    send_test = False
+    mint_10_sats = True
+    send_test = True
 
     relays = ["wss://relay.primal.net", "wss://nostr.mom"]
     mints = ["https://mint.minibits.cash/Bitcoin"]
