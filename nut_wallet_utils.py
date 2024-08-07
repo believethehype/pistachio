@@ -6,6 +6,7 @@ from hashlib import sha256
 
 import requests
 from cashu.core.base import Proof
+from cashu.wallet.p2pk import WalletP2PK
 from cashu.wallet.wallet import Wallet
 from nostr_dvm.utils.definitions import EventDefinitions
 from nostr_dvm.utils.dvmconfig import DVMConfig
@@ -30,6 +31,7 @@ class NutWallet:
     d: str
     a: str
     legacy_encryption: bool = True  # Use Nip04 instead of Nip44, for reasons, turn to False ASAP.
+    trust_unknown_mints: bool = False
 
 
 class NutMint:
@@ -95,7 +97,7 @@ async def create_new_nut_wallet(mint_urls, relays, name, description):
 
 async def get_nut_wallet(relays) -> NutWallet:
     client, dvm_config, keys, = await client_connect(relays)
-    print(keys.secret_key().to_bech32())
+    print(keys.secret_key().to_bech32() + " " + keys.public_key().to_bech32())
 
     nutwallet = None
 
@@ -162,6 +164,7 @@ async def get_nut_wallet(relays) -> NutWallet:
                 nutwallet.relays.append(tag.as_vec()[1])
             elif tag.as_vec()[0] == "mint":
                 nutwallet.mints.append(tag.as_vec()[1])
+        nutwallet.a = str("37375:" + best_wallet.author().to_hex() + ":" + nutwallet.d)  # TODO maybe this is wrong
 
         # Now get proofs
         proof_filter = Filter().kind(Kind(7375)).author(keys.public_key())
@@ -180,7 +183,6 @@ async def get_nut_wallet(relays) -> NutWallet:
             print("")
             print("AVAILABLE MINT:")
 
-            # print(proof_event.id().to_hex())
             try:
                 mint_url = proofs_json['mint']
                 print("mint: " + mint_url)
@@ -217,21 +219,14 @@ async def get_nut_wallet(relays) -> NutWallet:
             mints = [x for x in nutwallet.nutmints if x.mint_url == mint_url]
             if len(mints) == 0:
                 nutwallet.nutmints.append(nut_mint)
+            print("Mint Balance: " + str(nut_mint.available_balance()) + " Sats")
 
-            # evt = EventBuilder.delete([proof_event.id()], reason="deleted").to_event(keys)
-            # await client.send_event(evt)
-
-        nutwallet.a = str(
-            EventDefinitions.KIND_NUT_WALLET.as_u64()) + ":" + best_wallet.author().to_hex() + ":" + nutwallet.d  # TODO maybe this is wrong
     return nutwallet
 
 
 async def create_nut_wallet(nut_wallet: NutWallet, client, dvm_config):
-    innertags = []
-    balance_tag = Tag.parse(["balance", str(nut_wallet.balance), nut_wallet.unit])
-    prikey_tag = Tag.parse(["privkey", nut_wallet.privkey])
-    innertags.append(balance_tag.as_vec())
-    innertags.append(prikey_tag.as_vec())
+    innertags = [Tag.parse(["balance", str(nut_wallet.balance), nut_wallet.unit]).as_vec(),
+                 Tag.parse(["privkey", nut_wallet.privkey]).as_vec()]
 
     keys = Keys.parse(dvm_config.PRIVATE_KEY)
     if nut_wallet.legacy_encryption:
@@ -239,22 +234,13 @@ async def create_nut_wallet(nut_wallet: NutWallet, client, dvm_config):
     else:
         content = nip44_encrypt(keys.secret_key(), keys.public_key(), json.dumps(innertags), Nip44Version.V2)
 
-    tags = []
-
-    name_tag = Tag.parse(["name", nut_wallet.name])
-    tags.append(name_tag)
-
     if nut_wallet.unit is None:
         nut_wallet.unit = "sat"
 
-    unit_tag = Tag.parse(["unit", nut_wallet.unit])
-    tags.append(unit_tag)
-
-    descriptipn_tag = Tag.parse(["description", nut_wallet.description])
-    tags.append(descriptipn_tag)
-
-    d_tag = Tag.parse(["d", nut_wallet.d])
-    tags.append(d_tag)
+    tags = [Tag.parse(["name", nut_wallet.name]),
+            Tag.parse(["unit", nut_wallet.unit]),
+            Tag.parse(["description", nut_wallet.description]),
+            Tag.parse(["d", nut_wallet.d])]
 
     for mint in nut_wallet.mints:
         mint_tag = Tag.parse(["mint", mint])
@@ -267,20 +253,19 @@ async def create_nut_wallet(nut_wallet: NutWallet, client, dvm_config):
     event = EventBuilder(EventDefinitions.KIND_NUT_WALLET, content, tags).to_event(keys)
     eventid = await send_event(event, client=client, dvm_config=dvm_config)
 
-    print(
-        bcolors.BLUE + "[" + nut_wallet.name + "] Announced NIP 60 for Wallet (" + eventid.id.to_hex() + ")" + bcolors.ENDC)
+    print(bcolors.BLUE + "[" + nut_wallet.name + "] Announced NIP 60 for Wallet (" + eventid.id.to_hex() + ")" + bcolors.ENDC)
 
-
-async def update_nut_wallet(nut_wallet, mint, additional_amount, relays):
+async def update_nut_wallet(nut_wallet, mints, additional_amount, relays):
     client, dvm_config, keys, = await client_connect(relays)
-
+    # TODO we don't really need a DVMconfig potentially.
     dvm_config = DVMConfig()
     dvm_config.RELAY_LIST = relays
     dvm_config.PRIVATE_KEY = keys.secret_key().to_hex()
 
     nut_wallet.balance = int(nut_wallet.balance) + int(additional_amount)
-    if mint not in nut_wallet.mints:
-        nut_wallet.mints.append(mint)
+    for mint in mints:
+        if mint not in nut_wallet.mints:
+            nut_wallet.mints.append(mint)
     await create_nut_wallet(nut_wallet, client, dvm_config)
 
     print(nut_wallet.name + ": " + str(nut_wallet.balance) + " " + nut_wallet.unit + " Mints: " + str(
@@ -460,16 +445,11 @@ async def update_mint_proof_event(nut_wallet, send_proofs, mint_url, relays):
             mint.proofs.remove(entry[0])
             amount += send_proof.amount
 
-    client, dvm_config, keys, = await client_connect(relays)
-
     # TODO create and add send_proofs to 7376 history event
 
     # create new event
     mint.previous_event_id = await create_unspent_proof_event(nut_wallet, mint.proofs, mint.mint_url, relays)
-    nut_wallet = await update_nut_wallet(nut_wallet, mint.mint_url, -amount, relays)
-
-    return nut_wallet
-
+    return await update_nut_wallet(nut_wallet, [mint.mint_url], -amount, relays)
 
 async def mint_cashu(nut_wallet: NutWallet, mint_url, relays, amount):
     print("Minting new tokens on: " + mint_url)
@@ -493,24 +473,21 @@ async def mint_cashu(nut_wallet: NutWallet, mint_url, relays, amount):
     print("additional amount: " + str(additional_amount))
     mint.previous_event_id = await create_unspent_proof_event(nut_wallet, all_proofs, mint_url, relays)
 
-    return await update_nut_wallet(nut_wallet, mint_url, additional_amount, relays)
-    # return await get_nut_wallet(client, keys)
-
+    return await update_nut_wallet(nut_wallet, [mint_url], additional_amount, relays)
 
 async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zapped_user, lookup_relays):
     client, dvm_config, keys, = await client_connect(lookup_relays)
-
     unit = "sat"
-    p2pk_pubkey, mints, relays = await fetch_mint_info_event(zapped_user, lookup_relays)
 
+    p2pk_pubkey, mints, relays = await fetch_mint_info_event(zapped_user, lookup_relays)
     if len(mints) == 0:
-        print("No preferred mint set, returing")
+        print("No preferred mint set, returning")
         return
 
     mint_success = False
     index = 0
     mint_url = ""
-    fees = 0 # Don't know, is this something to consider?
+    fees = 0  # TODO Don't know, is this something to consider?
     sufficent_budget = False
 
     # Some logic.
@@ -530,20 +507,25 @@ async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zap
 
         # If that's not the case, iterate over the recipents mints and try to mint there. This might be a bit dangerous as not all mints might give cashu, so loss of ln is possible
         if mint_url is None:
-            while not mint_success:
-                try:
-                    mint_url = mints[index]  #
-                    # Maybe we introduce a list of known failing mints..
-                    if mint_url == "https://stablenut.umint.cash":
-                        raise Exception("stablemint bad")
-                    mint = get_mint(nut_wallet, mint_url)
-                    if mint.available_balance() < amount + fees:
-                        mint_amount = amount + fees - mint.available_balance()
-                        await mint_cashu(nut_wallet, mint_url, lookup_relays, mint_amount)
-                    mint_success = True
-                except:
-                    mint_success = False
-                    index += 1
+            if nut_wallet.trust_unknown_mints:
+                # maybe we don't do this for now..
+                while not mint_success:
+                    try:
+                        mint_url = mints[index]  #
+                        # Maybe we introduce a list of known failing mints..
+                        if mint_url == "https://stablenut.umint.cash":
+                            raise Exception("stablemint bad")
+                        mint = get_mint(nut_wallet, mint_url)
+                        if mint.available_balance() < amount + fees:
+                            mint_amount = amount + fees - mint.available_balance()
+                            await mint_cashu(nut_wallet, mint_url, lookup_relays, mint_amount)
+                        mint_success = True
+                    except:
+                        mint_success = False
+                        index += 1
+            else:
+                print("No trusted mints founds, enable trust_unknown_mints if you still want to proceed...")
+                return
 
     tags = [Tag.parse(["amount", str(amount)]),
             Tag.parse(["unit", unit]),
@@ -565,19 +547,12 @@ async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zap
     secret_lock = await cashu_wallet.create_p2pk_lock("02" + p2pk_pubkey)  # sender side
 
     try:
-        # print(cashu_proofs)
         proofs, fees = await cashu_wallet.select_to_send(mint.proofs, amount)
         _, send_proofs = await cashu_wallet.swap_to_send(
             proofs, amount, secret_lock=secret_lock, set_reserved=True
         )
-        # print(send_proofs)
 
-        try:
-            await update_mint_proof_event(nut_wallet, proofs, mint_url, lookup_relays)
-        except Exception as e:
-            print(e)
-
-        send_proofs_json = []
+        await update_mint_proof_event(nut_wallet, proofs, mint_url, lookup_relays)
         for proof in send_proofs:
             nut_proof = {
                 'id': proof.id,
@@ -586,20 +561,13 @@ async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zap
                 'secret': proof.secret,
             }
             tags.append(Tag.parse(["proof", json.dumps(nut_proof)]))
-            # send_proofs_json.append(nut_proof)
 
-        # content = json.dumps(send_proofs_json)
         event = EventBuilder(Kind(9321), comment, tags).to_event(keys)
-        #print(event.as_json())
         response = await send_event(event, client=client, dvm_config=dvm_config)
 
-        print( bcolors.YELLOW + "[" + nut_wallet.name + "] Sent NutZap 🥜️⚡ with "+ str(amount) +" sats to "
-               + PublicKey.parse(zapped_user).to_bech32() +
+        print(bcolors.YELLOW + "[" + nut_wallet.name + "] Sent NutZap 🥜️⚡ with " + str(amount) + " sats to "
+              + PublicKey.parse(zapped_user).to_bech32() +
               "(" + response.id.to_hex() + ")" + bcolors.ENDC)
-
-
 
     except Exception as e:
         print(e)
-
-    # await wallet2.redeem(send_proofs)
