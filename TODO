@@ -1,0 +1,9 @@
+- Receive logic
+- History of spending logic
+
+- Move coins between mints (either magically move or melt/mint)
+- right now we mint new tokens from lightning, if proofs are not sufficent
+
+Known issues:
+Make Wallet only first, dont directly mint.
+Mint/send at second start.. something is not updating
