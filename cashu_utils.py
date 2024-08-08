@@ -1,22 +1,15 @@
 import base64
 import json
-import os
-
-import cashu.mint.tasks
 import httpx
-import nostr_dvm.utils.zap_utils
 import requests
 from cashu.core.base import TokenV3
 from cashu.core.models import GetInfoResponse, MintMeltMethodSetting
 from cashu.mint.ledger import Ledger
-from cashu.nostr.key import PublicKey, PrivateKey
+from cashu.nostr.key import PublicKey
 from cashu.wallet.wallet import Wallet
 
 from nostr_dvm.utils.database_utils import get_or_add_user
 from nostr_dvm.utils.zap_utils import create_bolt11_ln_bits, create_bolt11_lud16
-from nostr_dvm.utils.dvmconfig import DVMConfig
-from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits
-
 BASE_URL = "https://mint.minibits.cash/Bitcoin"
 
 
@@ -100,28 +93,6 @@ async def receive_cashu_test(token_str):
         print(e)
 
 
-async def mint_cashu_test(mint_url, amount):
-    from cashu.wallet.wallet import Wallet
-    from cashu.core.settings import settings
-    from cashu.core.base import TokenV3
-
-    settings.tor = False
-    wallet = await Wallet.with_db(
-        url=mint_url,
-        db="db/Cashu",
-    )
-
-    #await wallet.load_mint()
-    #await wallet.load_proofs()
-
-    #print(f"Wallet balance: {wallet.available_balance} sats")
-
-    try:
-        await wallet.mint()
-        print(f"Wallet balance: {wallet.available_balance} sats")
-    except Exception as e:
-        print(e)
-
 
 def parse_cashu(cashu_token: str):
     try:
@@ -146,11 +117,6 @@ def parse_cashu(cashu_token: str):
     except Exception as e:
         print(e)
         return None, None, None, "Cashu Parser: " + str(e)
-
-
-
-
-
 
 
 async def redeem_cashu(cashu, config, client, required_amount=0, update_self=False) -> (bool, str, int, int):

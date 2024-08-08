@@ -6,7 +6,6 @@ from hashlib import sha256
 
 import requests
 from cashu.core.base import Proof
-from cashu.wallet.p2pk import WalletP2PK
 from cashu.wallet.wallet import Wallet
 from nostr_dvm.utils.definitions import EventDefinitions
 from nostr_dvm.utils.dvmconfig import DVMConfig
@@ -51,7 +50,7 @@ async def client_connect(relay_list):
     dvmconfig = DVMConfig()
     dvmconfig.RELAY_LIST = relay_list
 
-    keys = Keys.parse(check_and_set_private_key("RTEST_ACCOUNT_PK"))
+    keys = Keys.parse(check_and_set_private_key("TEST_ACCOUNT_PK"))
     pk = keys.secret_key().to_hex()
     dvmconfig.PRIVATE_KEY = pk
     wait_for_send = False
@@ -67,8 +66,7 @@ async def client_connect(relay_list):
     return client, dvmconfig, keys
 
 
-async def create_new_nut_wallet(mint_urls, relays, name, description):
-    client, dvm_config, keys, = await client_connect(relays)
+async def create_new_nut_wallet(mint_urls, relays, client, keys, name, description):
     dvm_config = DVMConfig()
     dvm_config.RELAY_LIST = relays
     dvm_config.PRIVATE_KEY = keys.secret_key().to_hex()
@@ -87,22 +85,22 @@ async def create_new_nut_wallet(mint_urls, relays, name, description):
     new_nut_wallet.a = str(
         Kind(7375).as_u64()) + ":" + keys.public_key().to_hex() + ":" + new_nut_wallet.d  # TODO maybe this is wrong
     print("Creating Wallet..")
-    await create_nut_wallet(new_nut_wallet, client, dvm_config)
+    id = await create_nut_wallet(new_nut_wallet, client, dvm_config)
+
+    if id is None:
+        print("Warning: Not published")
 
     print(new_nut_wallet.name + ": " + str(new_nut_wallet.balance) + " " + new_nut_wallet.unit + " Mints: " + str(
         new_nut_wallet.mints) + " Key: " + new_nut_wallet.privkey)
 
-    return new_nut_wallet
 
+async def get_nut_wallet(client, keys) -> NutWallet:
 
-async def get_nut_wallet(relays) -> NutWallet:
-    client, dvm_config, keys, = await client_connect(relays)
-    print(keys.secret_key().to_bech32() + " " + keys.public_key().to_bech32())
 
     nutwallet = None
 
     wallet_filter = Filter().kind(EventDefinitions.KIND_NUT_WALLET).author(keys.public_key())
-    wallets = await client.get_events_of([wallet_filter], timedelta(5))
+    wallets = await client.get_events_of([wallet_filter], timedelta(10))
 
     if len(wallets) > 0:
         nutwallet = NutWallet()
@@ -259,6 +257,7 @@ async def create_nut_wallet(nut_wallet: NutWallet, client, dvm_config):
 
     print(
         bcolors.BLUE + "[" + nut_wallet.name + "] Announced NIP 60 for Wallet (" + eventid.id.to_hex() + ")" + bcolors.ENDC)
+    return eventid.id
 
 
 async def update_nut_wallet(nut_wallet, mints, additional_amount, relays):
@@ -466,6 +465,7 @@ async def mint_cashu(nut_wallet: NutWallet, mint_url, relays, amount):
 
     return await add_proofs_to_wallet(nut_wallet, mint_url, proofs, relays)
 
+
 async def add_proofs_to_wallet(nut_wallet, mint_url, proofs, relays):
     mint = get_mint(nut_wallet, mint_url)
     additional_amount = 0
@@ -484,6 +484,7 @@ async def add_proofs_to_wallet(nut_wallet, mint_url, proofs, relays):
     mint.previous_event_id = await create_unspent_proof_event(nut_wallet, all_proofs, mint_url, relays)
 
     return await update_nut_wallet(nut_wallet, [mint_url], additional_amount, relays)
+
 
 async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zapped_user, lookup_relays):
     client, dvm_config, keys, = await client_connect(lookup_relays)
@@ -542,7 +543,7 @@ async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zap
             Tag.parse(["u", mint_url]),
             Tag.parse(["p", zapped_user])]
 
-    if zapped_event != "":
+    if zapped_event != "" and zapped_event is not None:
         tags.append(Tag.parse(["e", zapped_event]))
 
     mint = get_mint(nut_wallet, mint_url)

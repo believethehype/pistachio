@@ -8,8 +8,6 @@ Work in Progress. Contributions welcome.
 
 TODOs:
 - History of spending logic should be saved
+- Advanced logic for when to claim proofs
 - Move coins between mints (melt/mint) (right now we automatically mint new tokens from lightning, if proofs are not sufficient)
 - add other funding sources
-
-Known issues / Bugs:
-On first run, make wallet only. Don't directly mint on first start.
