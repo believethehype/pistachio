@@ -7,7 +7,6 @@ Work in Progress. Contributions welcome.
 - If you don't enter a private key, a new one will be generated (recommended in current state)
 
 TODOs:
-- History of spending logic should be saved
-- Advanced logic for when to claim proofs
 - Move coins between mints (melt/mint) (right now we automatically mint new tokens from lightning, if proofs are not sufficient)
 - add other funding sources
+- Currently using NIP04 for compatibility with nutsack.me, switch to NIP44 by setting legacy_encryption to False
