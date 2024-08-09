@@ -69,7 +69,7 @@ async def create_new_nut_wallet(mint_urls, relays, client, keys, name, descripti
     new_nut_wallet.description = description
     new_nut_wallet.mints = mint_urls
     new_nut_wallet.relays = relays
-    new_nut_wallet.d = "wallet" # sha256(str(new_nut_wallet.name + new_nut_wallet.description).encode('utf-8')).hexdigest()[:16]
+    new_nut_wallet.d = "wallet"  # sha256(str(new_nut_wallet.name + new_nut_wallet.description).encode('utf-8')).hexdigest()[:16]
     new_nut_wallet.a = str(Kind(7375).as_u64()) + ":" + keys.public_key().to_hex() + ":" + new_nut_wallet.d
     print("Creating Wallet..")
     send_response_id = await create_or_update_nut_wallet_event(new_nut_wallet, client, keys)
@@ -306,7 +306,7 @@ async def create_transaction_history_event(nut_wallet: NutWallet, amount: int, u
         content = nip44_encrypt(keys.secret_key(), keys.public_key(), message, Nip44Version.V2)
 
     tags = [Tag.parse(["a", nut_wallet.a])]
-    if marker == "redeemed":
+    if marker == "redeemed" or marker == "zapped":
         e_tag = Tag.parse(["e", event_hex, relay_hint, marker])
         tags.append(e_tag)
         p_tag = Tag.parse(["p", sender_hex])
@@ -340,7 +340,7 @@ async def create_unspent_proof_event(nut_wallet: NutWallet, mint_proofs, mint_ur
         response = await client.send_event(evt)
 
     tags = []
-    #print(nut_wallet.a)
+    # print(nut_wallet.a)
     a_tag = Tag.parse(["a", nut_wallet.a])
     tags.append(a_tag)
 
@@ -351,7 +351,7 @@ async def create_unspent_proof_event(nut_wallet: NutWallet, mint_proofs, mint_ur
 
     message = json.dumps(j)
 
-    #print(message)
+    # print(message)
     if nut_wallet.legacy_encryption:
         content = nip04_encrypt(keys.secret_key(), keys.public_key(), message)
     else:
@@ -400,7 +400,7 @@ async def mint_token(mint, amount):
             break
 
     if tree2["paid"]:
-        #print(response.text)
+        # print(response.text)
         wallet = await Wallet.with_db(
             url=mint,
             db="db/Cashu",
@@ -454,7 +454,7 @@ async def fetch_mint_info_event(pubkey, client):
     return pubkey, mints, relays
 
 
-async def update_spend_mint_proof_event(nut_wallet, send_proofs, mint_url, client, keys):
+async def update_spend_mint_proof_event(nut_wallet, send_proofs, mint_url, marker, sender_hex, event_hex, client, keys):
     mint = get_mint(nut_wallet, mint_url)
 
     print(mint.mint_url)
@@ -468,8 +468,8 @@ async def update_spend_mint_proof_event(nut_wallet, send_proofs, mint_url, clien
 
     # create new event
     mint.previous_event_id = await create_unspent_proof_event(nut_wallet, mint.proofs, mint.mint_url, amount, "out",
-                                                              None, None,
-                                                              None, client, keys)
+                                                              marker, sender_hex,
+                                                              event_hex, client, keys)
     return await update_nut_wallet(nut_wallet, [mint.mint_url], -amount, client, keys)
 
 
@@ -503,7 +503,7 @@ async def add_proofs_to_wallet(nut_wallet, mint_url, proofs, marker, sender, eve
     return await update_nut_wallet(nut_wallet, [mint_url], additional_amount, client, keys)
 
 
-async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zapped_user, client, keys):
+async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zapped_user, client: Client, keys: Keys):
     unit = "sats"
 
     p2pk_pubkey, mints, relays = await fetch_mint_info_event(zapped_user, client)
@@ -578,7 +578,6 @@ async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zap
             proofs, amount, secret_lock=secret_lock, set_reserved=True
         )
 
-        await update_spend_mint_proof_event(nut_wallet, proofs, mint_url, client, keys)
         for proof in send_proofs:
             nut_proof = {
                 'id': proof.id,
@@ -591,7 +590,11 @@ async def send_nut_zap(amount, comment, nut_wallet: NutWallet, zapped_event, zap
         event = EventBuilder(Kind(9321), comment, tags).to_event(keys)
         response = await client.send_event(event)
 
-        print(bcolors.YELLOW + "[" + nut_wallet.name + "] Sent NutZap 🥜️⚡ with " + str(amount) + " sats to "
+        await update_spend_mint_proof_event(nut_wallet, proofs, mint_url, "zapped", keys.public_key().to_hex(),
+                                            response.id.to_hex(), client, keys)
+
+        print(bcolors.YELLOW + "[" + nut_wallet.name + "] Sent NutZap 🥜️⚡ with " + str(
+            amount) + " " + nut_wallet.unit + " to "
               + PublicKey.parse(zapped_user).to_bech32() +
               "(" + response.id.to_hex() + ")" + bcolors.ENDC)
 

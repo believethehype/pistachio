@@ -1,4 +1,5 @@
 import json
+import threading
 from datetime import timedelta
 from pathlib import Path
 
@@ -16,18 +17,17 @@ from nut_wallet_utils import get_nut_wallet, announce_nutzap_info_event, mint_ca
 import asyncio
 
 
-
 async def test(relays, mints):
-    update_wallet_info = True  # leave this on false except when you manually changed relays/mints/keys
+    update_wallet_info = False  # leave this on false except when you manually changed relays/mints/keys
     client, keys = await client_connect(relays)
 
     # Test 1 Config: Mint Tokens
     mint_to_wallet = False  # Test function to mint 5 sats on the mint in your list with given index below
     mint_index = 0  # Index of mint in mints list to mint a token
-    mint_amount = 10  # Amount to mint
+    mint_amount = 5  # Amount to mint
 
     # Test 2 Config: Send Nutzap
-    send_test = False  # Send a Nutzap
+    send_test = True  # Send a Nutzap
     send_zap_amount = 4
     send_zap_message = "From my nutsack"
     send_reveiver = keys.public_key().to_bech32()  # This is ourself, for testing purposes,  some other people to nutzap:  #npub1nxa4tywfz9nqp7z9zp7nr7d4nchhclsf58lcqt5y782rmf2hefjquaa6q8 # dbth  #npub1l2vyh47mk2p0qlsku7hg0vn29faehy9hy34ygaclpn66ukqp3afqutajft # pablof7z
@@ -74,11 +74,11 @@ async def nostr_client(relays, mints, show_history):
 
     # but eventually, we check all events since the last time a transaction was made
     # therefore we fetch the transaction history (Maybe we limit this to 1 in the future)
-    transaction_history_filter = Filter().author(keys.public_key()).kinds([Kind(7376)])#.limit(1)
+    transaction_history_filter = Filter().author(keys.public_key()).kinds([Kind(7376)])  # .limit(1)
     transactions = await client.get_events_of([transaction_history_filter], timedelta(10))
 
-    #If we find transactions, we look for all events since right after the last one
-    print("\n"+ bcolors.CYAN +"Transaction History:" + bcolors.ENDC)
+    # If we find transactions, we look for all events since right after the last one
+    print("\n" + bcolors.CYAN + "Transaction History:" + bcolors.ENDC)
     if len(transactions) > 0:
         from_time = Timestamp.from_secs(transactions[0].created_at().as_secs())
         if show_history:
@@ -107,21 +107,27 @@ async def nostr_client(relays, mints, show_history):
                         sender = tag.as_vec()[1]
                     elif tag.as_vec()[0] == "e":
                         event = tag.as_vec()[1]
-                        #marker = tag.as_vec()[2]
+                        # marker = tag.as_vec()[2]
 
                 if direction == "in":
                     color = bcolors.GREEN
                     action = "minted"
+                    dir = "from"
                 else:
                     color = bcolors.RED
                     action = "spent"
-
+                    dir = "to"
 
                 if sender != "" and event != "":
-                    print(color + f"{direction:3}" + " " + f"{amount:6}" + " " + unit + " at " + transaction.created_at().to_human_datetime().replace("T", " ").replace("Z", " ") + "GMT" + bcolors.ENDC + " " + bcolors.YELLOW + " (Nutzap 🥜⚡️ from: " + PublicKey.parse(sender).to_bech32() + "(" + event + "))" + bcolors.ENDC)
+                    print(
+                        color + f"{direction:3}" + " " + f"{amount:6}" + " " + unit + " at " + transaction.created_at().to_human_datetime().replace(
+                            "T", " ").replace("Z",
+                                              " ") + "GMT" + bcolors.ENDC + " " + bcolors.YELLOW + " (Nutzap 🥜⚡️ " + dir + ": " + PublicKey.parse(
+                            sender).to_bech32() + "(" + event + "))" + bcolors.ENDC)
                 else:
-                    print(color + f"{direction:3}" + " " + f"{amount:6}" + " " + unit + " at " + transaction.created_at().to_human_datetime().replace("T", " ").replace("Z", " ") + "GMT" + " " + " (" + action + ")" + bcolors.ENDC)
-
+                    print(
+                        color + f"{direction:3}" + " " + f"{amount:6}" + " " + unit + " at " + transaction.created_at().to_human_datetime().replace(
+                            "T", " ").replace("Z", " ") + "GMT" + " " + " (" + action + ")" + bcolors.ENDC)
 
     nut_zap_filter = Filter().pubkey(keys.public_key()).kinds([Kind(9321)]).since(from_time).custom_tag(
         SingleLetterTag.lowercase(Alphabet.U),
@@ -178,7 +184,7 @@ async def nostr_client(relays, mints, show_history):
         async def handle_msg(self, relay_url, msg):
             return
 
-    await client.handle_notifications(NotificationHandler())
+    asyncio.create_task(client.handle_notifications(NotificationHandler()))
     while True:
         await asyncio.sleep(2.0)
 
@@ -194,5 +200,7 @@ if __name__ == '__main__':
     relays = ["wss://relay.primal.net", "wss://nostr.oxtr.dev"]
     mints = ["https://mint.minibits.cash/Bitcoin", "https://mint.gwoq.com"]
     show_history = True
+
     asyncio.run(test(relays, mints))
     asyncio.run(nostr_client(relays, mints, show_history))
+
