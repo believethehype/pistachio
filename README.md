@@ -9,5 +9,4 @@ Work in Progress. Contributions welcome.
 TODOs:
 - Move coins between mints (melt/mint) (right now we automatically mint new tokens from lightning, if proofs are not sufficient)
 - Check various reasons why some mints reject minting
-- Some events are not received.. (bug)
 - Currently, using NIP04 for compatibility with nutsack.me, switch to NIP44 by setting legacy_encryption to False
