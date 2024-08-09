@@ -14,17 +14,17 @@ from nut_wallet_utils import get_nut_wallet, announce_nutzap_info_event, mint_ca
     send_nut_zap, create_new_nut_wallet, client_connect, add_proofs_to_wallet, update_nut_wallet
 
 import asyncio
-from nostr_dvm.utils.print import bcolors
+
 
 
 async def test(relays, mints):
-    update_wallet_info = False  # leave this on false except when you manually changed relays/mints/keys
-    client, dvm_config, keys, = await client_connect(relays)
+    update_wallet_info = True  # leave this on false except when you manually changed relays/mints/keys
+    client, keys = await client_connect(relays)
 
     # Test 1 Config: Mint Tokens
     mint_to_wallet = False  # Test function to mint 5 sats on the mint in your list with given index below
     mint_index = 0  # Index of mint in mints list to mint a token
-    mint_amount = 5  # Amount to mint
+    mint_amount = 10  # Amount to mint
 
     # Test 2 Config: Send Nutzap
     send_test = False  # Send a Nutzap
@@ -67,7 +67,7 @@ async def test(relays, mints):
 
 
 async def nostr_client(relays, mints, show_history):
-    client, dvm_config, keys, = await client_connect(relays)
+    client, keys, = await client_connect(relays)
 
     # per default, check events within the last 60 seconds
     from_time = Timestamp.from_secs(Timestamp.now().as_secs() - 60)
@@ -111,14 +111,16 @@ async def nostr_client(relays, mints, show_history):
 
                 if direction == "in":
                     color = bcolors.GREEN
+                    action = "minted"
                 else:
                     color = bcolors.RED
+                    action = "spent"
 
 
                 if sender != "" and event != "":
-                    print(color + direction + " " + amount + " " + unit + " at " + transaction.created_at().to_human_datetime().replace("T", " ").replace("Z", " ") + "GMT" + bcolors.ENDC + " " + bcolors.YELLOW + "  (Nutzap from: " + sender + "(" + event + "))" + bcolors.ENDC)
+                    print(color + f"{direction:3}" + " " + f"{amount:6}" + " " + unit + " at " + transaction.created_at().to_human_datetime().replace("T", " ").replace("Z", " ") + "GMT" + bcolors.ENDC + " " + bcolors.YELLOW + " (Nutzap 🥜⚡️ from: " + PublicKey.parse(sender).to_bech32() + "(" + event + "))" + bcolors.ENDC)
                 else:
-                    print(color + direction + " " + amount + " " + unit + " at " + transaction.created_at().to_human_datetime().replace("T", " ").replace("Z", " ") + "GMT" + bcolors.ENDC)
+                    print(color + f"{direction:3}" + " " + f"{amount:6}" + " " + unit + " at " + transaction.created_at().to_human_datetime().replace("T", " ").replace("Z", " ") + "GMT" + " " + " (" + action + ")" + bcolors.ENDC)
 
 
     nut_zap_filter = Filter().pubkey(keys.public_key()).kinds([Kind(9321)]).since(from_time).custom_tag(
