@@ -39,7 +39,7 @@ async def test(relays, mints):
 
     # Test 3 Config: Melt to ln address
     melt = args.melt
-    melt_amount = 7
+    melt_amount = 13
 
 
 

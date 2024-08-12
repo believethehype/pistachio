@@ -15,7 +15,7 @@ from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits, create_bolt11_ln_bits,
 from nostr_sdk import Tag, Keys, nip44_encrypt, nip44_decrypt, Nip44Version, EventBuilder, Client, Filter, Kind, \
     EventId, nip04_decrypt, nip04_encrypt, Options, NostrSigner, PublicKey, init_logger, LogLevel, Timestamp
 from nostr_dvm.utils.print import bcolors
-from secp256k1 import PrivateKey
+from cashu.core.crypto.keys import PrivateKey
 
 init_logger(LogLevel.ERROR)
 
