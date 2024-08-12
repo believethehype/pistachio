@@ -4,17 +4,18 @@ from pathlib import Path
 import dotenv
 from nostr_sdk import PublicKey, Timestamp, Event, HandleNotification, Alphabet, Filter, SingleLetterTag, Kind
 
-from nut_wallet_utils import NutZapWallet
 
 import asyncio
 import argparse
 from nostr_dvm.utils.print import bcolors
 
+from nut_wallet_utils import NutZapWallet
 
 # Run with params for test functions or set the default here
 parser = argparse.ArgumentParser(description='Nutzaps')
 parser.add_argument("--mint", type=bool, default=False)
 parser.add_argument("--zap", type=bool, default=False)
+parser.add_argument("--melt", type=bool, default=False)
 args = parser.parse_args()
 
 
@@ -27,7 +28,7 @@ async def test(relays, mints):
     # Test 1 Config: Mint Tokens
     mint_to_wallet = args.mint  # Test function to mint 5 sats on the mint in your list with given index below
     mint_index = 0  # Index of mint in mints list to mint a token
-    mint_amount = 5  # Amount to mint
+    mint_amount = 10  # Amount to mint
 
     # Test 2 Config: Send Nutzap
     send_test = args.zap  # Send a Nutzap
@@ -35,6 +36,12 @@ async def test(relays, mints):
     send_zap_message = "From my nutsack"
     send_reveiver = keys.public_key().to_bech32()  # This is ourself, for testing purposes,  some other people to nutzap:  #npub1nxa4tywfz9nqp7z9zp7nr7d4nchhclsf58lcqt5y782rmf2hefjquaa6q8 # dbth  #npub1l2vyh47mk2p0qlsku7hg0vn29faehy9hy34ygaclpn66ukqp3afqutajft # pablof7z
     send_zapped_event = None  # None, or zap an event like this: Nip19Event.from_nostr_uri("nostr:nevent1qqsxq59mhz8s6aj9jzltcmqmmv3eutsfcpkeny2x755vdu5dtq44ldqpz3mhxw309ucnydewxqhrqt338g6rsd3e9upzp75cf0tahv5z7plpdeaws7ex52nmnwgtwfr2g3m37r844evqrr6jqvzqqqqqqyqtxyr6").event_id().to_hex()
+
+    # Test 3 Config: Melt to ln address
+    melt = args.melt
+    melt_amount = 7
+
+
 
     print("PrivateKey: " + keys.secret_key().to_bech32() + " PublicKey: " + keys.public_key().to_bech32())
     # See if we already have a wallet and fetch it
@@ -67,14 +74,10 @@ async def test(relays, mints):
         await nutzap_wallet.send_nut_zap(send_zap_amount, send_zap_message, nut_wallet, zapped_event_id_hex, zapped_user_hex, client,
                            keys)
 
-
-
-        #await get_nut_wallet(client, keys)
-
-
-
-#async def main(relays, mints, show_history):
-#    await asyncio.gather(nostr_client(relays, mints, show_history), test(relays, mints))
+    #Test 3: Melt back to lightning:
+    if melt:
+        await nutzap_wallet.redeem_cashu(nut_wallet, mints[mint_index], melt_amount, "hype@bitcoinfixesthis.org", client, keys)
+        await nutzap_wallet.get_nut_wallet(client, keys)
 
 
 if __name__ == '__main__':
@@ -88,16 +91,6 @@ if __name__ == '__main__':
     relays = ["wss://relay.primal.net"]
     mints = ["https://mint.minibits.cash/Bitcoin", "https://mint.gwoq.com"]
     show_history = True
-
-    #loop = asyncio.get_event_loop()
-    #try:
-    #    loop.run_until_complete(main(relays, mints, show_history))
-    #finally:
-    #    loop.close()
-
-    #asyncio.run(main(relays, mints, show_history))
-
-    #asyncio.run(nostr_client(relays, mints, show_history))
 
     asyncio.run(test(relays, mints))
 

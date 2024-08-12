@@ -7,9 +7,11 @@ from datetime import timedelta
 import requests
 from cashu.core.base import Proof
 from cashu.wallet.wallet import Wallet
+from nostr_dvm.utils.cashu_utils import parse_cashu
+from nostr_dvm.utils.database_utils import get_or_add_user
 from nostr_dvm.utils.definitions import EventDefinitions
 from nostr_dvm.utils.nostr_utils import check_and_set_private_key
-from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits
+from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits, create_bolt11_ln_bits, create_bolt11_lud16
 from nostr_sdk import Tag, Keys, nip44_encrypt, nip44_decrypt, Nip44Version, EventBuilder, Client, Filter, Kind, \
     EventId, nip04_decrypt, nip04_encrypt, Options, NostrSigner, PublicKey, init_logger, LogLevel, Timestamp
 from nostr_dvm.utils.print import bcolors
@@ -711,3 +713,28 @@ class NutZapWallet:
 
         except Exception as e:
             print(bcolors.RED + str(e) + bcolors.ENDC)
+
+    async def redeem_cashu(self, nut_wallet, mint_url, total_amount, lud16, client, keys):
+        mint = self.get_mint(nut_wallet, mint_url)
+
+        cashu_wallet = await Wallet.with_db(
+            url=mint_url,
+            db="db/Cashu",
+            name="wallet_mint_api",
+        )
+        await cashu_wallet.load_mint()
+        cashu_wallet.proofs = mint.proofs
+
+        estimated_fees = max(int(total_amount * 0.02), 3)
+        estimated_redeem_invoice_amount = total_amount - estimated_fees
+        invoice = create_bolt11_lud16(lud16, estimated_redeem_invoice_amount)
+        quote = await cashu_wallet.melt_quote(invoice)
+
+        send_proofs, _ = await cashu_wallet.select_to_send(cashu_wallet.proofs, total_amount)
+        await cashu_wallet.melt(send_proofs, invoice, estimated_fees, quote.quote)
+        await self.update_spend_mint_proof_event(nut_wallet, send_proofs, mint_url, None, None,
+                                                 None, client, keys)
+
+        print(bcolors.YELLOW + "[" + nut_wallet.name + "] Redeemed on Lightning ⚡ " + str(
+            total_amount-estimated_fees) + " (Fees: " + str(estimated_fees) + ") " + nut_wallet.unit
+            + bcolors.ENDC)
