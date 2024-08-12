@@ -732,7 +732,7 @@ class NutZapWallet:
 
         send_proofs, _ = await cashu_wallet.select_to_send(cashu_wallet.proofs, total_amount)
         await cashu_wallet.melt(send_proofs, invoice, estimated_fees, quote.quote)
-        await self.update_spend_mint_proof_event(nut_wallet, send_proofs, mint_url, None, None,
+        await self.update_spend_mint_proof_event(nut_wallet, send_proofs, mint_url, "", None,
                                                  None, client, keys)
 
         print(bcolors.YELLOW + "[" + nut_wallet.name + "] Redeemed on Lightning ⚡ " + str(
