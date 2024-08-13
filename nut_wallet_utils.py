@@ -7,8 +7,6 @@ from datetime import timedelta
 import requests
 from cashu.core.base import Proof
 from cashu.wallet.wallet import Wallet
-from nostr_dvm.utils.cashu_utils import parse_cashu
-from nostr_dvm.utils.database_utils import get_or_add_user
 from nostr_dvm.utils.definitions import EventDefinitions
 from nostr_dvm.utils.nostr_utils import check_and_set_private_key
 from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits, create_bolt11_ln_bits, create_bolt11_lud16
