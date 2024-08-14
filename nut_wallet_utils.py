@@ -7,11 +7,13 @@ from datetime import timedelta
 import requests
 from cashu.core.base import Proof
 from cashu.wallet.wallet import Wallet
+from nostr_dvm.utils.database_utils import fetch_user_metadata
 from nostr_dvm.utils.definitions import EventDefinitions
+from nostr_dvm.utils.dvmconfig import DVMConfig
 from nostr_dvm.utils.nostr_utils import check_and_set_private_key
-from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits, create_bolt11_ln_bits, create_bolt11_lud16
+from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits, create_bolt11_ln_bits, create_bolt11_lud16, zaprequest
 from nostr_sdk import Tag, Keys, nip44_encrypt, nip44_decrypt, Nip44Version, EventBuilder, Client, Filter, Kind, \
-    EventId, nip04_decrypt, nip04_encrypt, Options, NostrSigner, PublicKey, init_logger, LogLevel, Timestamp
+    EventId, nip04_decrypt, nip04_encrypt, Options, NostrSigner, PublicKey, init_logger, LogLevel, Timestamp, Metadata
 from nostr_dvm.utils.print import bcolors
 from cashu.core.crypto.keys import PrivateKey
 
@@ -712,7 +714,7 @@ class NutZapWallet:
         except Exception as e:
             print(bcolors.RED + str(e) + bcolors.ENDC)
 
-    async def redeem_cashu(self, nut_wallet, mint_url, total_amount, lud16, client, keys):
+    async def redeem_cashu(self, nut_wallet, mint_url, total_amount, client, keys, lud16=None, npub=None):
         mint = self.get_mint(nut_wallet, mint_url)
 
         cashu_wallet = await Wallet.with_db(
@@ -725,7 +727,19 @@ class NutZapWallet:
 
         estimated_fees = max(int(total_amount * 0.02), 3)
         estimated_redeem_invoice_amount = total_amount - estimated_fees
-        invoice = create_bolt11_lud16(lud16, estimated_redeem_invoice_amount)
+
+        if npub is None:
+            # if we don't pass the npub, we default to our pubkey
+            npub = Keys.parse(check_and_set_private_key("TEST_ACCOUNT_PK")).public_key().to_hex()
+
+        if lud16 is None:
+            # if we don't pass a lud16, we try to fetch one from our profile (make sure it's set)
+            name, nip05, lud16 = await fetch_user_metadata(npub, client)
+
+        invoice = zaprequest(lud16, estimated_redeem_invoice_amount, "Melting from your nutsack", None,
+                             PublicKey.parse(npub), keys, DVMConfig().RELAY_LIST, zaptype="private")
+        # else:
+        #    invoice = create_bolt11_lud16(lud16, estimated_redeem_invoice_amount)
         quote = await cashu_wallet.melt_quote(invoice)
 
         send_proofs, _ = await cashu_wallet.select_to_send(cashu_wallet.proofs, total_amount)
@@ -734,5 +748,17 @@ class NutZapWallet:
                                                  None, client, keys)
 
         print(bcolors.YELLOW + "[" + nut_wallet.name + "] Redeemed on Lightning ⚡ " + str(
-            total_amount-estimated_fees) + " (Fees: " + str(estimated_fees) + ") " + nut_wallet.unit
-            + bcolors.ENDC)
+            total_amount - estimated_fees) + " (Fees: " + str(estimated_fees) + ") " + nut_wallet.unit
+              + bcolors.ENDC)
+
+    async def set_profile(self, name, about, lud16, image, client, keys):
+        metadata = Metadata() \
+            .set_name(name) \
+            .set_display_name(name) \
+            .set_about(about) \
+            .set_picture(image) \
+            .set_lud16(lud16) \
+            .set_nip05("")
+        print("[" + name + "] Setting profile metadata for " + keys.public_key().to_bech32() + "...")
+        print(metadata.as_json())
+        await client.set_metadata(metadata)

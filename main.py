@@ -24,8 +24,13 @@ async def test(relays, mints):
     nutzap_wallet = NutZapWallet()
     update_wallet_info = False  # leave this on false except when you manually changed relays/mints/keys
     client, keys = await nutzap_wallet.client_connect(relays)
+    set_profile = False  # Attention, this overwrites your current profile if on True, do not set if you use an non-test account
 
-    # Test 1 Config: Mint Tokens
+    if set_profile:
+        lud16 = "hype@bitcoinfixesthis.org" #overwrite with your ln address
+        await nutzap_wallet.set_profile("Test", "I'm a nutsack test account", lud16, "https://i.nostr.build/kDiPfpWntURcM0ZF.jpg", client, keys)
+
+        # Test 1 Config: Mint Tokens
     mint_to_wallet = args.mint  # Test function to mint 5 sats on the mint in your list with given index below
     mint_index = 0  # Index of mint in mints list to mint a token
     mint_amount = 10  # Amount to mint
@@ -39,8 +44,7 @@ async def test(relays, mints):
 
     # Test 3 Config: Melt to ln address
     melt = args.melt
-    melt_amount = 13
-
+    melt_amount = 6
 
 
     print("PrivateKey: " + keys.secret_key().to_bech32() + " PublicKey: " + keys.public_key().to_bech32())
@@ -76,7 +80,10 @@ async def test(relays, mints):
 
     #Test 3: Melt back to lightning:
     if melt:
-        await nutzap_wallet.redeem_cashu(nut_wallet, mints[mint_index], melt_amount, "hype@bitcoinfixesthis.org", client, keys)
+        # you can overwrite the lu16 and/or npub, otherwise it's fetched from the profile (set it once by setting set_profile to True)
+        lud16 = None
+        npub = None
+        await nutzap_wallet.redeem_cashu(nut_wallet, mints[mint_index], melt_amount, client, keys, lud16, npub)
         await nutzap_wallet.get_nut_wallet(client, keys)
 
 
