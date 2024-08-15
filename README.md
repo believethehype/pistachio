@@ -1,7 +1,9 @@
 # Pistachio Sack
 (Pystachio, get it?)
 
-Nostr NIP 60/61 (Nutsack) implementation in Python.
+Nostr NIP 60/61 (Nutsack) implementation in Python. 
+
+Pistachios are members of the cashew family.
 
 Work in Progress. Contributions welcome.
 - Lightning Mint funding source at the moment is LNBits so invoices can be paid in code (see .env_example). 
