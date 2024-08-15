@@ -1,4 +1,4 @@
-# Pistachio sack
+# Pistachio bag
 (Pystachio, get it?)
 
 ![Nutsack](https://i.nostr.build/V4FwExrV5aXHNm70.jpg)
