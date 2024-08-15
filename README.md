@@ -1,4 +1,4 @@
-# nutz
+# pistachio nutz
 
 Attempt for NIP 60/61 (Nutwallet/NutZaps) implementation in Python
 
