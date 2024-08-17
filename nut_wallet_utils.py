@@ -714,7 +714,7 @@ class NutZapWallet:
         except Exception as e:
             print(bcolors.RED + str(e) + bcolors.ENDC)
 
-    async def redeem_cashu(self, nut_wallet, mint_url, total_amount, client, keys, lud16=None, npub=None):
+    async def melt_cashu(self, nut_wallet, mint_url, total_amount, client, keys, lud16=None, npub=None):
         mint = self.get_mint(nut_wallet, mint_url)
 
         cashu_wallet = await Wallet.with_db(

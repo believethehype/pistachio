@@ -28,7 +28,7 @@ async def test(relays, mints):
 
     if set_profile:
         lud16 = "hype@bitcoinfixesthis.org" #overwrite with your ln address
-        await nutzap_wallet.set_profile("Test", "I'm a nutsack test account", lud16, "https://i.nostr.build/kDiPfpWntURcM0ZF.jpg", client, keys)
+        await nutzap_wallet.set_profile("Test", "I'm a nutsack test account", lud16, "https://i.nostr.build/V4FwExrV5aXHNm70.jpg", client, keys)
 
         # Test 1 Config: Mint Tokens
     mint_to_wallet = args.mint  # Test function to mint 5 sats on the mint in your list with given index below
@@ -83,7 +83,7 @@ async def test(relays, mints):
         # you can overwrite the lu16 and/or npub, otherwise it's fetched from the profile (set it once by setting set_profile to True)
         lud16 = None
         npub = None
-        await nutzap_wallet.redeem_cashu(nut_wallet, mints[mint_index], melt_amount, client, keys, lud16, npub)
+        await nutzap_wallet.melt_cashu(nut_wallet, mints[mint_index], melt_amount, client, keys, lud16, npub)
         await nutzap_wallet.get_nut_wallet(client, keys)
 
 
