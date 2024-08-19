@@ -525,6 +525,13 @@ class NutZapWallet:
 
         return await self.update_nut_wallet(nut_wallet, [mint_url], client, keys)
 
+
+    async def handle_low_balance_on_mint(self, nut_wallet, mint_url, mint, amount, client, keys):
+        mint_amount = amount - mint.available_balance()
+
+        await self.mint_cashu(nut_wallet, mint_url, client, keys, mint_amount)
+
+
     async def send_nut_zap(self, amount, comment, nut_wallet: NutWallet, zapped_event, zapped_user, client: Client,
                            keys: Keys):
         unit = "sats"
@@ -551,8 +558,8 @@ class NutZapWallet:
             mint_url = next(i for i in nut_wallet.mints if i in mints)
             mint = self.get_mint(nut_wallet, mint_url)
             if mint.available_balance() < amount:
-                mint_amount = amount - mint.available_balance()
-                await self.mint_cashu(nut_wallet, mint_url, client, keys, mint_amount)
+                await self.handle_low_balance_on_mint(nut_wallet, mint_url, mint, amount, client, keys)
+
 
             # If that's not the case, iterate over the recipents mints and try to mint there. This might be a bit dangerous as not all mints might give cashu, so loss of ln is possible
             if mint_url is None:
@@ -566,8 +573,7 @@ class NutZapWallet:
                                 raise Exception("stablemint bad")
                             mint = self.get_mint(nut_wallet, mint_url)
                             if mint.available_balance() < amount:
-                                mint_amount = amount - mint.available_balance()
-                                await self.mint_cashu(nut_wallet, mint_url, client, keys, mint_amount)
+                                await self.handle_low_balance_on_mint(nut_wallet, mint_url, mint, amount, client, keys)
                             mint_success = True
                         except:
                             mint_success = False
