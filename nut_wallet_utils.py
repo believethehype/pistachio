@@ -5,17 +5,15 @@ from collections import namedtuple
 from datetime import timedelta
 
 import requests
-from cashu.core.base import Proof
-from cashu.wallet.wallet import Wallet
 from nostr_dvm.utils.database_utils import fetch_user_metadata
 from nostr_dvm.utils.definitions import EventDefinitions
 from nostr_dvm.utils.dvmconfig import DVMConfig
 from nostr_dvm.utils.nostr_utils import check_and_set_private_key
-from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits, create_bolt11_ln_bits, create_bolt11_lud16, zaprequest
+from nostr_dvm.utils.zap_utils import pay_bolt11_ln_bits, zaprequest
 from nostr_sdk import Tag, Keys, nip44_encrypt, nip44_decrypt, Nip44Version, EventBuilder, Client, Filter, Kind, \
-    EventId, nip04_decrypt, nip04_encrypt, Options, NostrSigner, PublicKey, init_logger, LogLevel, Timestamp, Metadata
+    EventId, nip04_decrypt, nip04_encrypt, Options, NostrSigner, PublicKey, init_logger, LogLevel, Metadata
 from nostr_dvm.utils.print import bcolors
-from cashu.core.crypto.keys import PrivateKey
+
 
 init_logger(LogLevel.ERROR)
 
@@ -120,6 +118,7 @@ class NutZapWallet:
         return send_response.id
 
     async def get_nut_wallet(self, client, keys) -> NutWallet:
+        from cashu.core.base import Proof
         nut_wallet = None
 
         wallet_filter = Filter().kind(EventDefinitions.KIND_NUT_WALLET).author(keys.public_key())
@@ -391,6 +390,7 @@ class NutZapWallet:
         return eventid.id
 
     async def mint_token(self, mint, amount):
+        from cashu.wallet.wallet import Wallet
         # TODO probably there's a library function for this
         url = mint + "/v1/mint/quote/bolt11"
         json_object = {"unit": "sat", "amount": amount}
@@ -439,19 +439,13 @@ class NutZapWallet:
         for mint in nut_wallet.mints:
             tags.append(Tag.parse(["mint", mint]))
 
-        cashu_wallet = await Wallet.with_db(
-            url=nut_wallet.mints[0],
-            db="db/Cashu",
-            name="wallet_mint_api",
-        )
-        await cashu_wallet.load_mint()
         pubkey = Keys.parse(nut_wallet.privkey).public_key().to_hex()
         tags.append(Tag.parse(["pubkey", pubkey]))
 
         event = EventBuilder(Kind(10019), "", tags).to_event(keys)
         eventid = await client.send_event(event)
         print(
-            bcolors.BLUE + "[" + nut_wallet.name + "] Announced mint preferences info event (" + eventid.id.to_hex() + ")" + bcolors.ENDC)
+            bcolors.CYAN + "[" + nut_wallet.name + "] Announced mint preferences info event (" + eventid.id.to_hex() + ")" + bcolors.ENDC)
 
     async def fetch_mint_info_event(self, pubkey, client):
         mint_info_filter = Filter().kind(Kind(10019)).author(PublicKey.parse(pubkey))
@@ -534,6 +528,7 @@ class NutZapWallet:
 
     async def send_nut_zap(self, amount, comment, nut_wallet: NutWallet, zapped_event, zapped_user, client: Client,
                            keys: Keys):
+        from cashu.wallet.wallet import Wallet
         unit = "sats"
 
         p2pk_pubkey, mints, relays = await self.fetch_mint_info_event(zapped_user, client)
@@ -679,12 +674,18 @@ class NutZapWallet:
                         "T", " ").replace("Z", " ") + "GMT" + " " + " (" + action + ")" + bcolors.ENDC)
 
     async def reedeem_nutzap(self, event, nut_wallet: NutWallet, client: Client, keys: Keys):
+        from cashu.wallet.wallet import Wallet
+        from cashu.core.base import Proof
+        from cashu.core.crypto.keys import PrivateKey
+
         proofs = []
         mint_url = ""
         amount = 0
         unit = "sat"
         zapped_user = ""
         zapped_event = ""
+        sender = event.author().to_hex()
+        message = event.content()
         for tag in event.tags():
             if tag.as_vec()[0] == "proof":
                 proof_json = json.loads(tag.as_vec()[1])
@@ -713,14 +714,20 @@ class NutZapWallet:
             mint = self.get_mint(nut_wallet, mint_url)
             print(mint.proofs)
             print(new_proofs)
+            count_amount = 0
+            for proof in new_proofs:
+                count_amount += proof.amount
             await self.add_proofs_to_wallet(nut_wallet, mint_url, new_proofs, "redeemed", event.author().to_hex(),
                                             event.id().to_hex(), client, keys)
 
-
+            return count_amount, message, sender
         except Exception as e:
             print(bcolors.RED + str(e) + bcolors.ENDC)
+            return None, message, sender
+
 
     async def melt_cashu(self, nut_wallet, mint_url, total_amount, client, keys, lud16=None, npub=None):
+        from cashu.wallet.wallet import Wallet
         mint = self.get_mint(nut_wallet, mint_url)
 
         cashu_wallet = await Wallet.with_db(
