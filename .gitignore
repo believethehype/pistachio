@@ -8,3 +8,5 @@ __pycache__/cashu_utils.cpython-311.pyc
 db/Cashu/wallet.sqlite3
 db/CashuReceiver/wallet.sqlite3
 db/Receiver/wallet.sqlite3
+__pycache__/nut_wallet_utils.cpython-312.pyc
+db/Sender/wallet.sqlite3

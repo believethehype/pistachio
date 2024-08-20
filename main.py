@@ -28,18 +28,18 @@ async def test(relays, mints):
 
     if set_profile:
         lud16 = "hype@bitcoinfixesthis.org" #overwrite with your ln address
-        await nutzap_wallet.set_profile("Test", "I'm a nutsack test account", lud16, "https://i.nostr.build/V4FwExrV5aXHNm70.jpg", client, keys)
+        await set_profile("Test", "I'm a nutsack test account", lud16, "https://i.nostr.build/V4FwExrV5aXHNm70.jpg", client, keys)
 
         # Test 1 Config: Mint Tokens
     mint_to_wallet = args.mint  # Test function to mint 5 sats on the mint in your list with given index below
-    mint_index = 0  # Index of mint in mints list to mint a token
+    mint_index = 1  # Index of mint in mints list to mint a token
     mint_amount = 10  # Amount to mint
 
     # Test 2 Config: Send Nutzap
     send_test = args.zap  # Send a Nutzap
     send_zap_amount = 3
     send_zap_message = "From my nutsack"
-    send_reveiver = keys.public_key().to_bech32()  # This is ourself, for testing purposes,  some other people to nutzap:  #npub1nxa4tywfz9nqp7z9zp7nr7d4nchhclsf58lcqt5y782rmf2hefjquaa6q8 # dbth  #npub1l2vyh47mk2p0qlsku7hg0vn29faehy9hy34ygaclpn66ukqp3afqutajft # pablof7z
+    send_reveiver =  "npub1nxa4tywfz9nqp7z9zp7nr7d4nchhclsf58lcqt5y782rmf2hefjquaa6q8" # keys.public_key().to_bech32()  # This is ourself, for testing purposes,  some other people to nutzap:  #npub1nxa4tywfz9nqp7z9zp7nr7d4nchhclsf58lcqt5y782rmf2hefjquaa6q8 # dbth  #npub1l2vyh47mk2p0qlsku7hg0vn29faehy9hy34ygaclpn66ukqp3afqutajft # pablof7z
     send_zapped_event = None  # None, or zap an event like this: Nip19Event.from_nostr_uri("nostr:nevent1qqsxq59mhz8s6aj9jzltcmqmmv3eutsfcpkeny2x755vdu5dtq44ldqpz3mhxw309ucnydewxqhrqt338g6rsd3e9upzp75cf0tahv5z7plpdeaws7ex52nmnwgtwfr2g3m37r844evqrr6jqvzqqqqqqyqtxyr6").event_id().to_hex()
 
     # Test 3 Config: Melt to ln address

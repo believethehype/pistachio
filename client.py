@@ -3,7 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import dotenv
-from nostr_sdk import HandleNotification, Event, Filter, SingleLetterTag, Alphabet, Kind, Timestamp
+from nostr_sdk import HandleNotification, Event, Filter, SingleLetterTag, Alphabet, Kind, Timestamp, EventSource
 
 from nut_wallet_utils import NutZapWallet
 from nostr_dvm.utils.print import bcolors
@@ -18,7 +18,8 @@ async def nostr_client(relays, mints, show_history):
     # but eventually, we check all events since the last time a transaction was made
     # therefore we fetch the transaction history (Maybe we limit this to 1 in the future)
     transaction_history_filter = Filter().author(keys.public_key()).kinds([Kind(7376)])  # .limit(1)
-    transactions = await client.get_events_of([transaction_history_filter], timedelta(10))
+    source = EventSource.relays(timedelta(seconds=10))
+    transactions = await client.get_events_of([transaction_history_filter],source)
 
     # If we find transactions, we look for all events since right after the last one
     print("\n" + bcolors.CYAN + "Transaction History:" + bcolors.ENDC)
