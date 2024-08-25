@@ -3,10 +3,15 @@ from datetime import timedelta
 from pathlib import Path
 
 import dotenv
-from nostr_sdk import HandleNotification, Event, Filter, SingleLetterTag, Alphabet, Kind, Timestamp, EventSource
+from nostr_sdk import HandleNotification, Event, Filter, SingleLetterTag, Alphabet, Kind, Timestamp, LogLevel, init_logger
 
 from nut_wallet_utils import NutZapWallet
 from nostr_dvm.utils.print import bcolors
+
+use_logger = True
+log_level = LogLevel.INFO
+if use_logger:
+    init_logger(log_level)
 
 async def nostr_client(relays, mints, show_history):
     nutzap_wallet_client = NutZapWallet()
@@ -18,8 +23,8 @@ async def nostr_client(relays, mints, show_history):
     # but eventually, we check all events since the last time a transaction was made
     # therefore we fetch the transaction history (Maybe we limit this to 1 in the future)
     transaction_history_filter = Filter().author(keys.public_key()).kinds([Kind(7376)])  # .limit(1)
-    source = EventSource.relays(timedelta(seconds=10))
-    transactions = await client.get_events_of([transaction_history_filter],source)
+    # source = EventSource.relays(timedelta(seconds=10))
+    transactions = await client.get_events_of([transaction_history_filter], timedelta(10))
 
     # If we find transactions, we look for all events since right after the last one
     print("\n" + bcolors.CYAN + "Transaction History:" + bcolors.ENDC)
@@ -33,9 +38,9 @@ async def nostr_client(relays, mints, show_history):
         SingleLetterTag.lowercase(Alphabet.U),
         mints)
 
-    #hist_events = await client.get_events_of([nut_zap_history_filter], timedelta(10))
+    # hist_events = await client.get_events_of([nut_zap_history_filter], timedelta(10))
 
-    #nut_zap_filter = Filter().pubkey(keys.public_key()).kinds([Kind(9321)]).custom_tag(
+    # nut_zap_filter = Filter().pubkey(keys.public_key()).kinds([Kind(9321)]).custom_tag(
     #    SingleLetterTag.lowercase(Alphabet.U),
     #    mints)
 
@@ -49,14 +54,14 @@ async def nostr_client(relays, mints, show_history):
             if event.kind().as_u64() == 9321:
                 print(bcolors.CYAN + "[Client] " + event.as_json() + bcolors.ENDC)
 
-                #if event.author().to_hex() == keys.public_key().to_hex():
+                # if event.author().to_hex() == keys.public_key().to_hex():
                 #     #sleep to avoid event not being updated on self zap
                 #     await asyncio.sleep(5)
 
                 nut_wallet = await nutzap_wallet_client.get_nut_wallet(client, keys)
                 if nut_wallet is not None:
                     await nutzap_wallet_client.reedeem_nutzap(event, nut_wallet, client, keys)
-                    #await get_nut_wallet(client, keys)
+                    # await get_nut_wallet(client, keys)
 
         async def handle_msg(self, relay_url, msg):
             return
@@ -74,7 +79,7 @@ if __name__ == '__main__':
     else:
         raise FileNotFoundError(f'.env file not found at {env_path} ')
 
-    relays = ["wss://relay.primal.net"]
+    relays = ["wss://nostr.oxtr.dev"]
     mints = ["https://mint.minibits.cash/Bitcoin", "https://mint.gwoq.com"]
     show_history = True
 

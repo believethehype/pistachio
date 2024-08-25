@@ -10,3 +10,8 @@ db/CashuReceiver/wallet.sqlite3
 db/Receiver/wallet.sqlite3
 __pycache__/nut_wallet_utils.cpython-312.pyc
 db/Sender/wallet.sqlite3
+.idea/nutz.iml
+.idea/dataSources.xml
+.idea/nutz.iml
+db/In/wallet.sqlite3
+db/Out/wallet.sqlite3
