@@ -639,8 +639,8 @@ class NutZapWallet:
 
             print(bcolors.YELLOW + "[" + nut_wallet.name + "] Sent NutZap 🥜️⚡ with " + str(
                 amount) + " " + nut_wallet.unit + " to "
-                  + PublicKey.parse(zapped_user).to_bech32() +
-                  "(" + response.id.to_hex() + ")" + bcolors.ENDC)
+                  + PublicKey.parse(zapped_user).to_bech32() + " (" + comment +")" +
+                  "   (" + response.id.to_hex() + ")" + bcolors.ENDC)
 
         except Exception as e:
             print(e)
@@ -790,8 +790,6 @@ class NutZapWallet:
         #TODO this doesn't seem to work yet.
         from cashu.wallet.cli.cli_helpers import print_mint_balances
         from cashu.wallet.wallet import Wallet
-        from cashu.core.crypto.keys import PrivateKey
-
 
         outgoing_mint = self.get_mint(nut_wallet, outgoing_mint_url)
 
