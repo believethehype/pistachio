@@ -1,6 +1,4 @@
 # Pistachio bag
-(Pystachio, get it?)
-
 ![Nutsack](https://i.nostr.build/V4FwExrV5aXHNm70.jpg)
 Nostr NIP 60/61 (Nutsack) implementation in Python. 
 
