@@ -28,7 +28,7 @@ moviepy==2.0.0.dev2
 mutagen==1.47.0
 nest-asyncio==1.6.0
 networkx==3.3
-nostr-dvm==0.8.4
+nostr-dvm==0.9.7
 numpy==1.26.3
 packaging==23.2
 pandas==2.2.2

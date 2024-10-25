@@ -15,3 +15,5 @@ db/Sender/wallet.sqlite3
 .idea/nutz.iml
 db/In/wallet.sqlite3
 db/Out/wallet.sqlite3
+db/CashuIn/wallet.sqlite3
+db/CashuOut/wallet.sqlite3
