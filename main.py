@@ -40,7 +40,7 @@ async def test(relays, mints):
     send_test = args.zap  # Send a Nutzap
     send_zap_amount = 6
     send_zap_message = "From my nutsack"
-    send_reveiver = "npub1u2d88f259vd3x9hftmnvrdfn0sju7rdhtadmw89e0zfgggl7mtys7gejs8" #    Keys.parse(os.getenv("DVM_PRIVATE_KEY_RECEIVER")).public_key().to_bech32() #   keys.public_key().to_bech32() ## This is ourself, for testing purposes,  some other people to nutzap:  #npub1nxa4tywfz9nqp7z9zp7nr7d4nchhclsf58lcqt5y782rmf2hefjquaa6q8 # dbth  #npub1l2vyh47mk2p0qlsku7hg0vn29faehy9hy34ygaclpn66ukqp3afqutajft # pablof7z
+    send_reveiver = Keys.parse(os.getenv("DVM_PRIVATE_KEY_RECEIVER")).public_key().to_bech32() #   keys.public_key().to_bech32() ## This is ourself, for testing purposes,  some other people to nutzap:  #npub1nxa4tywfz9nqp7z9zp7nr7d4nchhclsf58lcqt5y782rmf2hefjquaa6q8 # dbth  #npub1l2vyh47mk2p0qlsku7hg0vn29faehy9hy34ygaclpn66ukqp3afqutajft # pablof7z
     send_zapped_event = None  # None, or zap an event like this: Nip19Event.from_nostr_uri("nostr:nevent1qqsxq59mhz8s6aj9jzltcmqmmv3eutsfcpkeny2x755vdu5dtq44ldqpz3mhxw309ucnydewxqhrqt338g6rsd3e9upzp75cf0tahv5z7plpdeaws7ex52nmnwgtwfr2g3m37r844evqrr6jqvzqqqqqqyqtxyr6").event_id().to_hex()
 
     # Test 3 Config: Melt to ln address
