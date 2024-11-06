@@ -50,13 +50,13 @@ class NutMint(object):
 
 class NutZapWallet:
 
-    async def client_connect(self, relay_list, id):
-        keys = Keys.parse(check_and_set_private_key(id))
+    async def client_connect(self, relay_list, keys):
+
         client = Client(keys)
         for relay in relay_list:
             await client.add_relay(relay)
         await client.connect()
-        return client, keys
+        return client
 
     async def create_new_nut_wallet(self, mint_urls, relays, client, keys, name, description):
         new_nut_wallet = NutWallet()

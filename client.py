@@ -3,8 +3,9 @@ from datetime import timedelta
 from pathlib import Path
 
 import dotenv
+from nostr_dvm.utils.nostr_utils import check_and_set_private_key
 from nostr_sdk import HandleNotification, Event, Filter, SingleLetterTag, Alphabet, Kind, Timestamp, LogLevel, \
-    init_logger, EventSource
+    init_logger, EventSource, Keys
 
 from nut_wallet_utils import NutZapWallet
 from nostr_dvm.utils.print_utils import bcolors
@@ -16,7 +17,8 @@ if use_logger:
 
 async def nostr_client(relays, mints, show_history):
     nutzap_wallet_client = NutZapWallet()
-    client, keys, = await nutzap_wallet_client.client_connect(relays, "receiver")
+    keys = Keys.parse(check_and_set_private_key("receiver"))
+    client = await nutzap_wallet_client.client_connect(relays, keys)
 
     # per default, check events within the last 60 seconds
     from_time = Timestamp.from_secs(Timestamp.now().as_secs() - 60)

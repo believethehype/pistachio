@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import dotenv
+from nostr_dvm.utils.nostr_utils import check_and_set_private_key
 from nostr_sdk import PublicKey, Keys
 
 import asyncio
@@ -22,7 +23,8 @@ async def test(relays, mints):
 
     nutzap_wallet = NutZapWallet()
     update_wallet_info = True  # leave this on false except when you manually changed relays/mints/keys
-    client, keys = await nutzap_wallet.client_connect(relays, "sender")
+    keys = Keys.parse(check_and_set_private_key("sender"))
+    client = await nutzap_wallet.client_connect(relays, keys)
     set_profile = True  # Attention, this overwrites your current profile if on True, do not set if you use an non-test account
 
     if set_profile:
