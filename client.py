@@ -24,16 +24,16 @@ async def nostr_client(relays, mints, show_history):
     # but eventually, we check all events since the last time a transaction was made
     # therefore we fetch the transaction history (Maybe we limit this to 1 in the future)
     transaction_history_filter = Filter().author(keys.public_key()).kinds([Kind(7376)])  # .limit(1)
-    source = EventSource.relays(timedelta(seconds=10))
-    transactions = await client.get_events_of([transaction_history_filter], source)
+
+    transactions = await client.fetch_events([transaction_history_filter], timedelta(seconds=10))
 
     # If we find transactions, we look for all events since right after the last one
     print("\n" + bcolors.CYAN + "Transaction History:" + bcolors.ENDC)
-    if len(transactions) > 0:
-        from_time = Timestamp.from_secs(transactions[0].created_at().as_secs())
+    if len(transactions.to_vec()) > 0:
+        from_time = Timestamp.from_secs(transactions.to_vec()[0].created_at().as_secs())
 
         if show_history:
-            nutzap_wallet_client.print_transaction_history(transactions, keys)
+            nutzap_wallet_client.print_transaction_history(transactions.to_vec(), keys)
 
     nut_zap_history_filter = Filter().pubkey(keys.public_key()).kinds([Kind(9321)]).since(from_time).custom_tag(
         SingleLetterTag.lowercase(Alphabet.U),
@@ -100,7 +100,7 @@ if __name__ == '__main__':
         raise FileNotFoundError(f'.env file not found at {env_path} ')
 
     relays = ["wss://relay.primal.net"]
-    mints = ["https://mint.minibits.cash/Bitcoin"]
+    mints = ["https://mint.gwoq.com"]
     show_history = True
 
     asyncio.run(nostr_client(relays, mints, show_history))
